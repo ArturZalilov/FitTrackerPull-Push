@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "707862604026",
+    "project_id": "fit-tracker-pull-and-pus-7c970",
+    "storage_bucket": "fit-tracker-pull-and-pus-7c970.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707862604026:android:d2cad473b8f37aeefcc143",
+        "android_client_info": {
+          "package_name": "com.example.fit_tracker_pull_and_push"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCm2UFMXwGJSHI7ZB4PMHeuIVV6Fc3Uyzc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
