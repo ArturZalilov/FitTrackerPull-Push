@@ -51,3 +51,8 @@ class AuthNotifier extends Notifier<void> {
     await ref.read(authRepositoryProvider).signOut();
   }
 }
+
+// ✅ Провайдер для AuthNotifier
+final authNotifierProvider = NotifierProvider<AuthNotifier, void>(
+  AuthNotifier.new,
+);

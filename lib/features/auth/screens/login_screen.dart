@@ -1,32 +1,45 @@
+// 📁 lib/features/auth/ui/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Добавили
 import '../auth_notifier.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerWidget {
+  // ✅ ConsumerWidget
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ Добавили ref
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _authNotifier = AuthNotifier();
+    void handleLogin() async {
+      try {
+        // ✅ Правильный вызов через Riverpod
+        await ref
+            .read(authNotifierProvider.notifier)
+            .signIn(
+              emailController.text.trim(),
+              passwordController.text.trim(),
+            );
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
+        // ✅ Переход только если виджет ещё в дереве
+        if (context.mounted) {
+          Navigator.pushReplacementNamed(context, '/app');
+        }
+      } catch (e) {
+        // ✅ Показываем ошибку
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка входа: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
 
-  void _handleLogin() {
-    _authNotifier.signIn(_emailController.text, _passwordController.text);
-    Navigator.pushReplacementNamed(context, '/app');
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -42,32 +55,46 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
               TextField(
-                controller: _emailController,
+                controller: emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   hintText: 'your@email.com',
+                  border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
               ),
               const SizedBox(height: 24),
               TextField(
-                controller: _passwordController,
+                controller: passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Password',
                   hintText: '••••••••',
+                  border: OutlineInputBorder(),
                 ),
                 obscureText: true,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _handleLogin,
-                child: const Text('Login'),
+                onPressed: handleLogin,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text(
+                  'Login',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
               const SizedBox(height: 16),
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text('Create account'),
+                  child: const Text(
+                    'Create account',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
               ),
             ],
