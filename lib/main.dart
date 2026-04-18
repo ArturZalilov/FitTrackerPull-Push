@@ -26,16 +26,15 @@ void main() async {
   runApp(const ProviderScope(child: FitTrackApp()));
 }
 
-class FitTrackApp extends StatelessWidget {
+class FitTrackApp extends ConsumerWidget {
   const FitTrackApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Pull&Push',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),

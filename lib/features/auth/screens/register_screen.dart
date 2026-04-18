@@ -127,6 +127,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // ✅ Имя
                 TextField(
                   controller: _nameController,
+                  enableSuggestions: false,
                   keyboardType: TextInputType.text, // ✅ Явно разрешаем буквы
                   decoration: const InputDecoration(
                     labelText: 'Name',

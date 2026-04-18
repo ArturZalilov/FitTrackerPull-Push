@@ -1,22 +1,51 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../auth_notifier.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
-    });
+    checkAuthAndNavigate();
+  }
+
+  Future<void> checkAuthAndNavigate() async {
+    // 1️⃣ Ждём 2 секунды, чтобы пользователь увидел логотип
+    await Future.delayed(const Duration(seconds: 2));
+
+    // 2️⃣ Проверяем, не удалён ли виджет за время ожидания
+    if (!mounted) return;
+
+    // 3️⃣ Читаем текущее состояние авторизации из Riverpod
+    final authState = ref.read(authStateProvider);
+
+    // 4️⃣ Принимаем решение о переходе
+    authState.when(
+      data: (user) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            user != null ? '/app' : '/login',
+          );
+        }
+      },
+      loading: () {
+        // Если Firebase ещё не ответил за 2 сек → идём на логин
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      },
+      error: (_, __) {
+        // Ошибка сети или авторизации → на логин
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      },
+    );
   }
 
   @override

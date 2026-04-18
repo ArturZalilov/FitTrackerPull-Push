@@ -1,10 +1,14 @@
+// 📁 lib/features/users/ui/profile_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Добавили
+import '../../auth/auth_notifier.dart'; // ✅ Путь к твоему auth_notifier
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
+  // ✅ ConsumerWidget
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -80,12 +84,19 @@ class ProfileScreen extends StatelessWidget {
                       'Logout',
                       style: TextStyle(color: Colors.red),
                     ),
-                    onTap: () {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/login',
-                        (route) => false,
-                      );
+                    // ✅ ИСПРАВЛЕНИЕ: реальный выход через Riverpod
+                    onTap: () async {
+                      // 1. Вызываем signOut из AuthNotifier
+                      await ref.read(authNotifierProvider.notifier).signOut();
+
+                      // 2. Только после успешного выхода — навигация
+                      if (context.mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/login',
+                          (route) => false,
+                        );
+                      }
                     },
                   ),
                 ],
