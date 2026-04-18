@@ -1,5 +1,5 @@
+// 📁 lib/features/auth/screens/splash_screen.dart
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth_notifier.dart';
 
@@ -11,26 +11,31 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _canNavigate = false;
+
   @override
   void initState() {
     super.initState();
-    checkAuthAndNavigate();
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        setState(() {
+          _canNavigate = true;
+        });
+        _tryNavigate();
+      }
+    });
   }
 
-  Future<void> checkAuthAndNavigate() async {
-    // 1️⃣ Ждём 2 секунды, чтобы пользователь увидел логотип
-    await Future.delayed(const Duration(seconds: 2));
+  void _tryNavigate() {
+    if (!_canNavigate || !mounted) return;
 
-    // 2️⃣ Проверяем, не удалён ли виджет за время ожидания
-    if (!mounted) return;
-
-    // 3️⃣ Читаем текущее состояние авторизации из Riverpod
     final authState = ref.read(authStateProvider);
 
-    // 4️⃣ Принимаем решение о переходе
     authState.when(
       data: (user) {
         if (mounted) {
+          debugPrint('🔑 Auth resolved: ${user?.email ?? "null"}');
           Navigator.pushReplacementNamed(
             context,
             user != null ? '/app' : '/login',
@@ -38,18 +43,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         }
       },
       loading: () {
-        // Если Firebase ещё не ответил за 2 сек → идём на логин
-        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        debugPrint('⏳ Firebase ещё проверяет токен...');
       },
-      error: (_, __) {
-        // Ошибка сети или авторизации → на логин
-        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      error: (err, stack) {
+        if (mounted) {
+          debugPrint('❌ Auth error: $err');
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Только BuildContext, без ref!
+    // 🔥 Слушаем authState
+    ref.listen(authStateProvider, (previous, next) {
+      if (_canNavigate) {
+        _tryNavigate();
+      }
+    });
+
+    // 🎨 Твой красивый UI
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

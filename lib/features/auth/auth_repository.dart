@@ -1,10 +1,21 @@
+// 📁 lib/features/auth/auth_repository.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthRepository {
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  //регистрация
-  Future signUp({
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 🔥 Стрим состояния авторизации — Firebase сам шлёт обновления
+  Stream<User?> authStateChanges() => _auth.authStateChanges();
+
+  String? get currentUserId => _auth.currentUser?.uid;
+
+  Future<void> signIn({required String email, required String password}) async {
+    await _auth.signInWithEmailAndPassword(email: email, password: password);
+  }
+
+  Future<void> signUp({
     required String email,
     required String password,
     required String name,
@@ -12,41 +23,24 @@ class AuthRepository {
     required String weight,
     required String height,
   }) async {
-    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+    final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
 
-    // ✅ Добавь это:
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(credential.user!.uid)
-        .set({
-          'name': name,
-          'lastName': lastName,
-          'weight': weight,
-          'height': height,
-        });
+    // Создаём профиль в Firestore
+    await _firestore.collection('users').doc(credential.user!.uid).set({
+      'uid': credential.user!.uid,
+      'email': email,
+      'name': name,
+      'lastName': lastName,
+      'weight': weight,
+      'height': height,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  //вход
-  Future<void> signIn({required String email, required String password}) async {
-    await _firebaseAuth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-  }
-
-  //выход
   Future<void> signOut() async {
-    await _firebaseAuth.signOut();
+    await _auth.signOut();
   }
-
-  //метод состояния пользователя (вошел/вышел)
-  Stream<User?> authStateChanges() {
-    return _firebaseAuth.authStateChanges();
-  }
-
-  //какой пользователь вошёл
-  String? get currentUserId => _firebaseAuth.currentUser?.uid;
 }
