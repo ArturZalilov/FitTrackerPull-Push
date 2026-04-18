@@ -10,6 +10,9 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _weightController = TextEditingController();
+  final _heightController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authNotifier = AuthNotifier();
@@ -17,6 +20,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _lastNameController.dispose();
+    _weightController.dispose();
+    _heightController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -56,6 +62,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Name',
                   hintText: 'Your name',
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'LastName',
+                  hintText: 'Your last name',
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _weightController,
+                decoration: const InputDecoration(
+                  labelText: 'Weight',
+                  hintText: 'Your weight in kg',
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _heightController,
+                decoration: const InputDecoration(
+                  labelText: 'Height',
+                  hintText: 'Your height in cm',
                 ),
               ),
               const SizedBox(height: 24),

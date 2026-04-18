@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
-import 'features/auth/main_layout.dart';
+import 'features/auth/screens/main_layout.dart';
 import 'features/workouts/screens/create_workout_screen.dart';
 import 'features/workouts/screens/workout_detail_screen.dart';
 import 'features/exercises/screens/create_exercise_screen.dart';

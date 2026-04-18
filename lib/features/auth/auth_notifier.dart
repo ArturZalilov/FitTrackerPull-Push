@@ -13,25 +13,27 @@ final authStateProvider = StreamProvider<User?>((ref) {
 });
 
 //нажатие кнопок
+
 class AuthNotifier extends Notifier<void> {
-  late AuthRepository _repo;
   @override
-  void build() {
-    _repo = ref.read(authRepositoryProvider);
-  }
+  void build() {}
 
   //вход
   Future<void> signIn(String email, String password) async {
-    await _repo.signIn(email: email, password: password);
+    await ref
+        .read(authRepositoryProvider)
+        .signIn(email: email, password: password);
   }
 
   //регистрация
   Future<void> signUp(String email, String password) async {
-    await _repo.signUp(email: email, password: password);
+    await ref
+        .read(authRepositoryProvider)
+        .signUp(email: email, password: password);
   }
 
   //выход
   Future<void> signOut() async {
-    await _repo.signOut();
+    await ref.read(authRepositoryProvider).signOut();
   }
 }

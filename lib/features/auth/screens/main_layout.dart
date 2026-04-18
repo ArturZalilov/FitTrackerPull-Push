@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../workouts/screens/workouts_screen.dart';
-import '../exercises/screens/exercises_screen.dart';
-import '../users/screens/profile_screen.dart';
+import '../../workouts/screens/workouts_screen.dart';
+import '../../exercises/screens/exercises_screen.dart';
+import '../../users/screens/profile_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
