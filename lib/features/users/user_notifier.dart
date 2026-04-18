@@ -22,7 +22,6 @@ class UserNotifier extends AsyncNotifier<UserProfile> {
         lastName: '',
         weight: '',
         height: '',
-        dateTime: null,
       );
     }
     _subscription = FirebaseFirestore.instance
@@ -47,7 +46,6 @@ class UserNotifier extends AsyncNotifier<UserProfile> {
       lastName: state.value!.lastName,
       weight: state.value!.weight,
       height: state.value!.height,
-      dateTime: state.value!.dateTime,
     );
   }
 
@@ -57,15 +55,13 @@ class UserNotifier extends AsyncNotifier<UserProfile> {
     String lastName,
     String weight,
     String height,
-    DateTime dateTime,
   ) async {
     final uid = state.value?.id;
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'name': name,
       'lastName': lastName,
       'weight': weight,
-      'heught': height,
-      'dateTime': dateTime,
+      'height': height,
     });
   }
 

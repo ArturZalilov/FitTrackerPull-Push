@@ -26,10 +26,24 @@ class AuthNotifier extends Notifier<void> {
   }
 
   //регистрация
-  Future<void> signUp(String email, String password) async {
+  Future<void> signUp(
+    String email,
+    String password,
+    String name,
+    String lastName,
+    String weight,
+    String height,
+  ) async {
     await ref
         .read(authRepositoryProvider)
-        .signUp(email: email, password: password);
+        .signUp(
+          email: email,
+          password: password,
+          name: name,
+          lastName: lastName,
+          weight: weight,
+          height: height,
+        );
   }
 
   //выход

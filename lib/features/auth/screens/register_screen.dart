@@ -29,7 +29,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _handleRegister() {
-    _authNotifier.signUp(_emailController.text, _passwordController.text);
+    _authNotifier.signUp(
+      _emailController.text,
+      _passwordController.text,
+      _nameController.text,
+      _lastNameController.text,
+      _weightController.text,
+      _heightController.text,
+    );
     Navigator.pushReplacementNamed(context, '/app');
   }
 

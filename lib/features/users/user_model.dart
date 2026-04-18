@@ -1,12 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserProfile {
   final String id;
   final String name;
   final String lastName;
   final String weight;
   final String height;
-  final DateTime? dateTime;
 
   //конструктор
   UserProfile({
@@ -15,7 +12,6 @@ class UserProfile {
     required this.lastName,
     required this.weight,
     required this.height,
-    required this.dateTime,
   });
 
   //конструктор для преобразование при получении из Firebase
@@ -26,7 +22,6 @@ class UserProfile {
       lastName: map['lastName'] ?? '',
       weight: map['weight'] ?? '',
       height: map['height'] ?? '',
-      dateTime: (map['dateTime'] as Timestamp).toDate(),
     );
   }
 
@@ -37,7 +32,6 @@ class UserProfile {
       'lastName': lastName,
       'weight': weight,
       'height': height,
-      'dateTime': dateTime,
     };
   }
 }

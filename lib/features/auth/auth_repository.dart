@@ -1,14 +1,32 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthRepository {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   //регистрация
-  Future<void> signUp({required String email, required String password}) async {
-    await _firebaseAuth.createUserWithEmailAndPassword(
+  Future signUp({
+    required String email,
+    required String password,
+    required String name,
+    required String lastName,
+    required String weight,
+    required String height,
+  }) async {
+    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
-    //здесь должно открываться новое окно и вызываться метод добавления данных нового пользователя
+
+    // ✅ Добавь это:
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(credential.user!.uid)
+        .set({
+          'name': name,
+          'lastName': lastName,
+          'weight': weight,
+          'height': height,
+        });
   }
 
   //вход
