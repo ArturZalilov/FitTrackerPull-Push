@@ -9,7 +9,6 @@ class WorkoutDetailScreen extends ConsumerWidget {
 
   const WorkoutDetailScreen({super.key, required this.workoutId});
 
-  // Форматирование даты
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -17,8 +16,11 @@ class WorkoutDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userId = ref.read(authRepositoryProvider).currentUserId;
-    if (userId == null) return const Scaffold();
+    if (userId == null) {
+      return const Scaffold(body: Center(child: Text('Please login')));
+    }
 
+    // ✅ Слушаем данные
     final workoutAsync = ref.watch(
       workoutProvider({'userId': userId, 'workoutId': workoutId}),
     );
@@ -61,12 +63,27 @@ class WorkoutDetailScreen extends ConsumerWidget {
       ),
       body: workoutAsync.when(
         data: (workout) {
-          if (workout == null)
-            return const Center(child: Text('Workout not found'));
+          // ✅ Если тренировка не найдена — показываем сообщение
+          if (workout == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text('Workout not found'),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Go Back'),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return Column(
             children: [
-              // 📅 Карточка с информацией о тренировке
               Card(
                 margin: const EdgeInsets.all(16),
                 child: Padding(
@@ -74,7 +91,6 @@ class WorkoutDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Дата тренировки
                       Row(
                         children: [
                           const Icon(
@@ -95,7 +111,6 @@ class WorkoutDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       const Divider(),
                       const SizedBox(height: 8),
-                      // Параметры
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -112,7 +127,6 @@ class WorkoutDetailScreen extends ConsumerWidget {
                 ),
               ),
               const Divider(),
-              // Список упражнений
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -181,19 +195,95 @@ class WorkoutDetailScreen extends ConsumerWidget {
                   },
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(child: Text('Error: $err')),
+                  // ✅ Показываем ошибку с деталями
+                  error: (err, _) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.warning,
+                          size: 48,
+                          color: Colors.orange,
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Error: $err'),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () => ref.refresh(
+                            workoutExercisesProvider({
+                              'userId': userId,
+                              'workoutId': workoutId,
+                            }),
+                          ),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        // ✅ Таймаут: если за 5 сек нет ответа — показываем ошибку
+        loading: () {
+          return FutureBuilder<void>(
+            future: Future.delayed(const Duration(seconds: 5)),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Loading...'),
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          ref.refresh(
+                            workoutProvider({
+                              'userId': userId,
+                              'workoutId': workoutId,
+                            }),
+                          );
+                          ref.refresh(
+                            workoutExercisesProvider({
+                              'userId': userId,
+                              'workoutId': workoutId,
+                            }),
+                          );
+                        },
+                        child: const Text('Refresh'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const Center(child: CircularProgressIndicator());
+            },
+          );
+        },
+        // ✅ Обработка ошибки загрузки тренировки
+        error: (err, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $err'),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  // Вспомогательный виджет для статистики
   Widget _buildStatColumn(String label, String value) {
     return Column(
       children: [
