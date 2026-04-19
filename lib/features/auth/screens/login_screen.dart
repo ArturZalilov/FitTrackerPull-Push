@@ -13,7 +13,30 @@ class LoginScreen extends ConsumerWidget {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
 
+    // ✅ Показ ошибки
+    void showError(String message) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      }
+    }
+
+    // ✅ Валидация полей
+    bool validateLogin() {
+      if (emailController.text.trim().isEmpty) {
+        showError('Please enter your email');
+        return false;
+      }
+      if (passwordController.text.trim().isEmpty) {
+        showError('Please enter your password');
+        return false;
+      }
+      return true;
+    }
+
     void handleLogin() async {
+      if (!validateLogin()) return;
       try {
         // ✅ Правильный вызов через Riverpod
         await ref

@@ -44,7 +44,47 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
+  // ✅ Валидация полей
+  bool validateRegistration() {
+    if (_nameController.text.trim().isEmpty) {
+      _showError('Please enter your name');
+      return false;
+    }
+    if (_lastNameController.text.trim().isEmpty) {
+      _showError('Please enter your last name');
+      return false;
+    }
+    if (_weightController.text.trim().isEmpty) {
+      _showError('Please enter your weight');
+      return false;
+    }
+    if (_heightController.text.trim().isEmpty) {
+      _showError('Please enter your height');
+      return false;
+    }
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Please enter your email');
+      return false;
+    }
+    if (_passwordController.text.trim().isEmpty) {
+      _showError('Please enter a password');
+      return false;
+    }
+    return true;
+  }
+
+  // ✅ Показ ошибки
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   void handleRegister() async {
+    // ✅ Проверка валидации
+    if (!validateRegistration()) return;
     try {
       await ref
           .read(authNotifierProvider.notifier)
