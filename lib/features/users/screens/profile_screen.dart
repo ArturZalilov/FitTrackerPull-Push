@@ -1,4 +1,5 @@
 // 📁 lib/features/users/ui/profile_screen.dart
+import 'package:fit_tracker_pull_and_push/features/users/user_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Добавили
 import '../../auth/auth_notifier.dart'; // ✅ Путь к твоему auth_notifier
@@ -9,10 +10,11 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userData = ref.watch(userNotifierProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Профиль'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: const Color(0xFFE5E7EB), height: 1),
@@ -28,14 +30,44 @@ class ProfileScreen extends ConsumerWidget {
               child: Icon(Icons.person, size: 50, color: Colors.white),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'John Doe',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            userData.when(
+              data: (userProfile) => Text(
+                // ✅ Обращаемся к свойству name
+                userProfile.name,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              loading: () => CircularProgressIndicator(),
+              error: (err, stack) => Text('Ошибка загрузки'),
             ),
             const SizedBox(height: 8),
-            Text(
-              'john.doe@email.com',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            userData.when(
+              data: (userProfile) => Text(
+                // ✅ Обращаемся к свойству lastName
+                userProfile.lastName,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              loading: () => CircularProgressIndicator(),
+              error: (err, stack) => Text('Ошибка загрузки'),
+            ),
+            const SizedBox(height: 32),
+            userData.when(
+              data: (userProfile) => Text(
+                // ✅ Обращаемся к свойству weight
+                userProfile.weight,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              loading: () => CircularProgressIndicator(),
+              error: (err, stack) => Text('Ошибка загрузки'),
+            ),
+            const SizedBox(height: 32),
+            userData.when(
+              data: (userProfile) => Text(
+                // ✅ Обращаемся к свойству height
+                userProfile.height,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              loading: () => CircularProgressIndicator(),
+              error: (err, stack) => Text('Ошибка загрузки'),
             ),
             const SizedBox(height: 32),
             Card(
@@ -52,18 +84,6 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.list_alt),
-                    title: const Text('Total Exercises'),
-                    trailing: const Text(
-                      '8',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -71,12 +91,6 @@ class ProfileScreen extends ConsumerWidget {
             Card(
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.settings),
-                    title: const Text('Settings'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
-                  ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),

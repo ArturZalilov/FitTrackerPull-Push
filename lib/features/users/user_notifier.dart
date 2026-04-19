@@ -49,8 +49,8 @@ class UserNotifier extends AsyncNotifier<UserProfile> {
     );
   }
 
-  //значения из полей ввода
-  Future<void> userUpdate(
+  //Обновление данных профиля
+  /*   Future<void> userUpdate(
     String name,
     String lastName,
     String weight,
@@ -63,7 +63,7 @@ class UserNotifier extends AsyncNotifier<UserProfile> {
       'weight': weight,
       'height': height,
     });
-  }
+  } */
 
   void dispose() {
     _subscription?.cancel();
