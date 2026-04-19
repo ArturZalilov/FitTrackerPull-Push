@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ExerciseProgressScreen extends ConsumerWidget {
-  final String exerciseId;
+  final String? exerciseId; // ✅ Добавь ? (сделай nullable)
 
-  const ExerciseProgressScreen({super.key, required this.exerciseId});
+  const ExerciseProgressScreen({
+    super.key,
+    this.exerciseId, // ✅ Убери 'required' если есть
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

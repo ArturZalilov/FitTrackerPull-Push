@@ -10,7 +10,6 @@ import 'features/workouts/screens/create_workout_screen.dart';
 import 'features/workouts/screens/workout_detail_screen.dart';
 import 'features/exercises/screens/create_exercise_screen.dart';
 import 'features/exercises/screens/add_exercise_screen.dart';
-import 'features/exercises/screens/exercise_sets_screen.dart';
 import 'features/exercises/screens/exercise_progress_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -41,10 +40,23 @@ class FitTrackApp extends ConsumerWidget {
         '/register': (context) => const RegisterScreen(),
         '/app': (context) => const MainLayout(),
         '/create-workout': (context) => const CreateWorkoutScreen(),
-        '/workout-detail': (context) => const WorkoutDetailScreen(),
+
+        // ✅ Просто передаём экран (он сам прочитает arguments)
+        '/workout-detail': (context) {
+          final workoutId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return WorkoutDetailScreen(workoutId: workoutId);
+        },
+
+        // ✅ УБРАЛИ workoutId - экран сам прочитает из arguments
         '/create-exercise': (context) => const CreateExerciseScreen(),
+
+        // ✅ УБРАЛИ workoutId - экран сам прочитает из arguments
         '/add-exercise': (context) => const AddExerciseScreen(),
-        '/exercise-sets': (context) => const ExerciseSetsScreen(),
+
+        '/exercise-sets': (context) => const Scaffold(),
+
+        // ✅ УБРАЛИ exerciseId - экран сам прочитает из arguments
         '/exercise-progress': (context) => const ExerciseProgressScreen(),
       },
     );

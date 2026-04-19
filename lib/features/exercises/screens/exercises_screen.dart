@@ -4,20 +4,44 @@ import '../exercises_notifier.dart';
 import '../../auth/auth_notifier.dart';
 
 class ExercisesScreen extends ConsumerWidget {
-  final String? workoutId; // Optional (nullable)
+  final String? workoutId;
 
-  const ExercisesScreen({
-    super.key,
-    this.workoutId, // Не required
-  });
+  const ExercisesScreen({super.key, this.workoutId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userId = ref.read(authRepositoryProvider).currentUserId;
     if (userId == null) return const Scaffold();
 
+    // ✅ Проверка: если workoutId нет — показываем заглушку
+    if (workoutId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Exercises')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.fitness_center, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Select a workout to view exercises',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Go to Workouts tab and choose a training',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ Теперь workoutId точно не null — можно использовать !
     final exercisesAsync = ref.watch(
-      workoutExercisesProvider({'userId': userId, 'workoutId': workoutId}),
+      workoutExercisesProvider({'userId': userId, 'workoutId': workoutId!}),
     );
 
     return Scaffold(
