@@ -1,127 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../exercises_notifier.dart';
+import '../../auth/auth_notifier.dart';
 
-class ExercisesScreen extends StatefulWidget {
-  const ExercisesScreen({super.key});
+class ExercisesScreen extends ConsumerWidget {
+  final String? workoutId; // Optional (nullable)
 
-  @override
-  State<ExercisesScreen> createState() => _ExercisesScreenState();
-}
-
-class _ExercisesScreenState extends State<ExercisesScreen> {
-  final _searchController = TextEditingController();
-  String _searchQuery = '';
-
-  final List<Map<String, dynamic>> mockExercises = [
-    {'id': 1, 'name': 'Bench Press'},
-    {'id': 2, 'name': 'Squat'},
-    {'id': 3, 'name': 'Pull Ups'},
-    {'id': 4, 'name': 'Deadlift'},
-    {'id': 5, 'name': 'Overhead Press'},
-    {'id': 6, 'name': 'Barbell Row'},
-    {'id': 7, 'name': 'Lunges'},
-    {'id': 8, 'name': 'Dips'},
-  ];
+  const ExercisesScreen({
+    super.key,
+    this.workoutId, // Не required
+  });
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userId = ref.read(authRepositoryProvider).currentUserId;
+    if (userId == null) return const Scaffold();
 
-  List<Map<String, dynamic>> get filteredExercises {
-    if (_searchQuery.isEmpty) {
-      return mockExercises;
-    }
-    return mockExercises
-        .where(
-          (exercise) => exercise['name']!.toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ),
-        )
-        .toList();
-  }
+    final exercisesAsync = ref.watch(
+      workoutExercisesProvider({'userId': userId, 'workoutId': workoutId}),
+    );
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text('Exercises'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFFE5E7EB), height: 1),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search exercises...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: filteredExercises.length,
-                  itemBuilder: (context, index) {
-                    final exercise = filteredExercises[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Card(
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/exercise-progress',
-                              arguments: exercise['name'],
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              exercise['name'] as String,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            bottom: 96,
-            right: 24,
-            child: FloatingActionButton(
-              onPressed: () => Navigator.pushNamed(context, '/create-exercise'),
-              backgroundColor: const Color(0xFF3B82F6),
-              child: const Icon(Icons.add, color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => Navigator.pushNamed(
+              context,
+              '/create-exercise',
+              arguments: workoutId,
             ),
           ),
         ],
+      ),
+      body: exercisesAsync.when(
+        data: (exercises) {
+          if (exercises.isEmpty) {
+            return const Center(child: Text('No exercises. Tap + to add.'));
+          }
+          return ListView.builder(
+            itemCount: exercises.length,
+            itemBuilder: (context, index) {
+              final exercise = exercises[index];
+              return ListTile(
+                title: Text(exercise.title),
+                subtitle: Text(exercise.discription),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    '/exercise-progress',
+                    arguments: exercise.id,
+                  );
+                },
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Error: $err')),
       ),
     );
   }

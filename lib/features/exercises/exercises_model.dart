@@ -1,16 +1,12 @@
-class ExercisesModel {
+class Exercise {
   final String id;
   final String title;
   final String discription;
 
-  ExercisesModel({
-    required this.id,
-    required this.title,
-    required this.discription,
-  });
+  Exercise({required this.id, required this.title, required this.discription});
 
-  factory ExercisesModel.fromMap(Map<String, dynamic> map, String documentId) {
-    return ExercisesModel(
+  factory Exercise.fromMap(Map<String, dynamic> map, String documentId) {
+    return Exercise(
       id: documentId,
       title: map['title'] ?? '',
       discription: map['discription'] ?? '',
