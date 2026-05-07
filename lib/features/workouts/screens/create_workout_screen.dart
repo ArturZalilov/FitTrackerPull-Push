@@ -1,12 +1,9 @@
-// 📁 lib/features/workouts/screens/create_workout_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../workouts_notifier.dart';
+import '../workouts_model.dart'; // ✅ ДОБАВЬ ЭТУ СТРОКУ!
 import '../../exercises/exercises_notifier.dart';
-import '../../auth/auth_notifier.dart'; // ✅ ДОБАВЬ ЭТУ СТРОКУ!
-
-// ... остальной код ...
+import '../../auth/auth_notifier.dart';
 
 class CreateWorkoutScreen extends ConsumerStatefulWidget {
   const CreateWorkoutScreen({super.key});
@@ -20,7 +17,7 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
   final _formKey = GlobalKey<FormState>();
   DateTime _selectedDate = DateTime.now();
   final _notesController = TextEditingController();
-  final _selectedExercises = <String, String>{}; // code → name
+  final _selectedExerciseCodes = <String, String>{}; // code → name
 
   @override
   void dispose() {
@@ -54,21 +51,29 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
             child: exercisesAsync.when(
               data: (exercises) {
                 if (exercises.isEmpty) {
-                  return const Text('No exercises yet. Create one first!');
+                  return const Text(
+                    'No exercises yet. Create one in Exercises tab first!',
+                  );
                 }
                 return ListView(
                   shrinkWrap: true,
                   children: exercises.map((ex) {
-                    final isSelected = _selectedExercises.containsKey(ex.code);
+                    final isSelected = _selectedExerciseCodes.containsKey(
+                      ex.code,
+                    );
                     return CheckboxListTile(
                       title: Text(ex.name),
                       subtitle: Text(ex.description),
                       value: isSelected,
                       onChanged: (checked) {
                         if (checked == true) {
-                          setState(() => _selectedExercises[ex.code] = ex.name);
+                          setState(
+                            () => _selectedExerciseCodes[ex.code] = ex.name,
+                          );
                         } else {
-                          setState(() => _selectedExercises.remove(ex.code));
+                          setState(
+                            () => _selectedExerciseCodes.remove(ex.code),
+                          );
                         }
                       },
                     );
@@ -87,7 +92,6 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                // Упражнения добавятся после создания тренировки
               },
               child: const Text('Add'),
             ),
@@ -101,10 +105,10 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      // 1. Создаём тренировку
       final userId = ref.read(authRepositoryProvider).currentUserId;
       if (userId == null) return;
 
+      // 1. Создаём тренировку (без упражнений — они добавятся отдельно)
       final workoutId = await ref
           .read(workoutsRepositoryProvider)
           .createWorkout(
@@ -113,12 +117,11 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
               id: '',
               date: _selectedDate,
               notes: _notesController.text.trim(),
-              exercises: [],
             ),
           );
 
-      // 2. Добавляем выбранные упражнения
-      for (final entry in _selectedExercises.entries) {
+      // 2. Добавляем выбранные упражнения как отдельные записи
+      for (final entry in _selectedExerciseCodes.entries) {
         await ref
             .read(workoutsNotifierProvider.notifier)
             .addExerciseToWorkout(
@@ -190,19 +193,19 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
                   ),
                 ],
               ),
-              if (_selectedExercises.isEmpty)
+              if (_selectedExerciseCodes.isEmpty)
                 const Text(
                   'No exercises selected',
                   style: TextStyle(color: Colors.grey),
                 ),
-              ..._selectedExercises.entries.map(
+              ..._selectedExerciseCodes.entries.map(
                 (e) => ListTile(
                   title: Text(e.value),
                   subtitle: Text('Code: ${e.key}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.close, color: Colors.red),
                     onPressed: () =>
-                        setState(() => _selectedExercises.remove(e.key)),
+                        setState(() => _selectedExerciseCodes.remove(e.key)),
                   ),
                 ),
               ),

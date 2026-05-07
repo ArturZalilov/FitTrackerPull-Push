@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Exercise {
-  final String id; // ID документа в Firestore
-  final String code; // Уникальный код: "bench_press", "squat", etc.
-  final String name; // Название для отображения
-  final String description; // Описание техники
-  final num record; // Личный рекорд (для графика)
+class ExerciseModel {
+  final String id;
+  final String code;
+  final String name;
+  final String description;
+  final num record;
   final DateTime createdAt;
 
-  Exercise({
+  ExerciseModel({
     required this.id,
     required this.code,
     required this.name,
@@ -17,8 +17,8 @@ class Exercise {
     required this.createdAt,
   });
 
-  factory Exercise.fromMap(Map<String, dynamic> map, String id) {
-    return Exercise(
+  factory ExerciseModel.fromMap(Map<String, dynamic> map, String id) {
+    return ExerciseModel(
       id: id,
       code: map['code'] ?? '',
       name: map['name'] ?? '',
@@ -38,7 +38,7 @@ class Exercise {
     };
   }
 
-  Exercise copyWith({
+  ExerciseModel copyWith({
     String? id,
     String? code,
     String? name,
@@ -46,7 +46,7 @@ class Exercise {
     num? record,
     DateTime? createdAt,
   }) {
-    return Exercise(
+    return ExerciseModel(
       id: id ?? this.id,
       code: code ?? this.code,
       name: name ?? this.name,

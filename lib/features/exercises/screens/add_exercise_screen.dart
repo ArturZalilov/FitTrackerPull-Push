@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../exercises_notifier.dart';
+import '../../workouts/workouts_notifier.dart'; // ✅ Добавь это!
 
 class AddExerciseScreen extends ConsumerStatefulWidget {
   const AddExerciseScreen({super.key});
@@ -11,20 +12,22 @@ class AddExerciseScreen extends ConsumerStatefulWidget {
 
 class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _discriptionController = TextEditingController();
+  final _codeController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
   late final String _workoutId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _workoutId = ModalRoute.of(context)!.settings.arguments as String;
+    _workoutId = ModalRoute.of(context)!.settings.arguments as String? ?? '';
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _discriptionController.dispose();
+    _codeController.dispose();
+    _nameController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -32,18 +35,34 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
+      // Создаём глобальное упражнение
+      final exerciseCode = _codeController.text.trim().toLowerCase().replaceAll(
+        ' ',
+        '_',
+      );
       await ref
           .read(exercisesNotifierProvider.notifier)
           .createExercise(
-            _workoutId,
-            _titleController.text.trim(),
-            _discriptionController.text.trim(),
+            exerciseCode,
+            _nameController.text.trim(),
+            _descriptionController.text.trim(),
+            0,
           );
+
+      // Добавляем его в текущую тренировку
+      await ref
+          .read(workoutsNotifierProvider.notifier)
+          .addExerciseToWorkout(
+            _workoutId,
+            exerciseCode,
+            _nameController.text.trim(),
+          );
+
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -61,9 +80,19 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
-                controller: _titleController,
+                controller: _codeController,
                 decoration: const InputDecoration(
-                  labelText: 'Title *',
+                  labelText: 'Code *',
+                  hintText: 'e.g., bench_press',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name *',
                   hintText: 'e.g., Bench Press',
                   border: OutlineInputBorder(),
                 ),
@@ -71,7 +100,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _discriptionController,
+                controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Description',
                   hintText: 'How to perform...',

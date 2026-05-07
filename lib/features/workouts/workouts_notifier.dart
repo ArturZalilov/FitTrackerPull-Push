@@ -5,7 +5,6 @@ import 'workouts_model.dart';
 
 final workoutsRepositoryProvider = Provider((ref) => WorkoutsRepository());
 
-// 🔹 Список тренировок пользователя
 final userWorkoutsProvider = StreamProvider.family<List<WorkoutModel>, String>((
   ref,
   userId,
@@ -13,7 +12,6 @@ final userWorkoutsProvider = StreamProvider.family<List<WorkoutModel>, String>((
   return ref.read(workoutsRepositoryProvider).getUserWorkouts(userId);
 });
 
-// 🔹 Одна тренировка
 final workoutProvider =
     FutureProvider.family<WorkoutModel?, Map<String, String>>((
       ref,
@@ -27,6 +25,18 @@ final workoutProvider =
           .getWorkout(userId, workoutId);
     });
 
+final workoutExercisesProvider =
+    StreamProvider.family<List<WorkoutExercise>, Map<String, String>>((
+      ref,
+      params,
+    ) {
+      final userId = params['userId']!;
+      final workoutId = params['workoutId']!;
+      return ref
+          .read(workoutsRepositoryProvider)
+          .getWorkoutExercises(userId, workoutId);
+    });
+
 class WorkoutsNotifier extends Notifier<void> {
   @override
   void build() {}
@@ -34,22 +44,15 @@ class WorkoutsNotifier extends Notifier<void> {
   WorkoutsRepository get _repo => ref.read(workoutsRepositoryProvider);
   String? get _userId => ref.read(authRepositoryProvider).currentUserId;
 
-  // 🔹 Создать новую тренировку
   Future<void> createWorkout(DateTime date, String? notes) async {
     final userId = _userId;
     if (userId == null) throw Exception('User not authenticated');
 
-    final workout = WorkoutModel(
-      id: '',
-      date: date,
-      notes: notes,
-      exercises: [],
-    );
+    final workout = WorkoutModel(id: '', date: date, notes: notes);
 
     await _repo.createWorkout(userId, workout);
   }
 
-  // 🔹 Добавить упражнение в тренировку
   Future<void> addExerciseToWorkout(
     String workoutId,
     String exerciseCode,
@@ -68,7 +71,6 @@ class WorkoutsNotifier extends Notifier<void> {
     await _repo.addExerciseToWorkout(userId, workoutId, workoutExercise);
   }
 
-  // 🔹 Обновить подходы упражнения
   Future<void> updateExerciseSets(
     String workoutId,
     String exerciseId,
@@ -79,7 +81,6 @@ class WorkoutsNotifier extends Notifier<void> {
     await _repo.updateWorkoutExerciseSets(userId, workoutId, exerciseId, sets);
   }
 
-  // 🔹 Удалить тренировку
   Future<void> deleteWorkout(String workoutId) async {
     final userId = _userId;
     if (userId == null) return;

@@ -6,7 +6,6 @@ import '../../auth/auth_notifier.dart';
 class WorkoutsScreen extends ConsumerWidget {
   const WorkoutsScreen({super.key});
 
-  // Форматирование даты
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final yesterday = DateTime(now.year, now.month, now.day - 1);
@@ -49,26 +48,16 @@ class WorkoutsScreen extends ConsumerWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${workout.sets} sets × ${workout.reps} reps'),
-                      const SizedBox(height: 4),
-                      // 📅 Дата тренировки
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 14,
+                      // ✅ Вместо sets/reps показываем дату
+                      Text(_formatDate(workout.date)),
+                      if (workout.notes?.isNotEmpty ?? false)
+                        Text(
+                          '📝 ${workout.notes}',
+                          style: TextStyle(
+                            fontSize: 12,
                             color: Colors.grey[600],
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDate(workout.date),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
                     ],
                   ),
                   trailing: const Icon(Icons.chevron_right),

@@ -4,8 +4,7 @@ import 'exercises_model.dart';
 class ExercisesRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 🔹 Создать глобальное упражнение
-  Future<String> createExercise(String userId, Exercise exercise) async {
+  Future<String> createExercise(String userId, ExerciseModel exercise) async {
     final doc = await _firestore
         .collection('users')
         .doc(userId)
@@ -14,8 +13,7 @@ class ExercisesRepository {
     return doc.id;
   }
 
-  // 🔹 Получить все глобальные упражнения пользователя
-  Stream<List<Exercise>> getUserExercises(String userId) {
+  Stream<List<ExerciseModel>> getUserExercises(String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
@@ -24,16 +22,15 @@ class ExercisesRepository {
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
-              .map((doc) => Exercise.fromMap(doc.data(), doc.id))
+              .map((doc) => ExerciseModel.fromMap(doc.data(), doc.id))
               .toList(),
         );
   }
 
-  // 🔹 Обновить глобальное упражнение (например, рекорд)
   Future<void> updateExercise(
     String userId,
     String exerciseId,
-    Exercise exercise,
+    ExerciseModel exercise,
   ) async {
     await _firestore
         .collection('users')
@@ -43,7 +40,6 @@ class ExercisesRepository {
         .update(exercise.toMap());
   }
 
-  // 🔹 Удалить глобальное упражнение
   Future<void> deleteExercise(String userId, String exerciseId) async {
     await _firestore
         .collection('users')
@@ -53,8 +49,7 @@ class ExercisesRepository {
         .delete();
   }
 
-  // 🔹 Получить одно упражнение по коду
-  Future<Exercise?> getExerciseByCode(String userId, String code) async {
+  Future<ExerciseModel?> getExerciseByCode(String userId, String code) async {
     final snapshot = await _firestore
         .collection('users')
         .doc(userId)
@@ -65,7 +60,7 @@ class ExercisesRepository {
 
     if (snapshot.docs.isNotEmpty) {
       final doc = snapshot.docs.first;
-      return Exercise.fromMap(doc.data(), doc.id);
+      return ExerciseModel.fromMap(doc.data(), doc.id);
     }
     return null;
   }

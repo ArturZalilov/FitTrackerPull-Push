@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../workouts_notifier.dart';
-import '../../exercises/exercises_notifier.dart';
+import '../workouts_model.dart'; // ✅ ДОБАВЬ ЭТУ СТРОКУ!
 import '../../auth/auth_notifier.dart';
 
 class WorkoutDetailScreen extends ConsumerWidget {
@@ -9,7 +9,6 @@ class WorkoutDetailScreen extends ConsumerWidget {
 
   const WorkoutDetailScreen({super.key, required this.workoutId});
 
-  // Форматирование даты
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -61,8 +60,9 @@ class WorkoutDetailScreen extends ConsumerWidget {
       ),
       body: workoutAsync.when(
         data: (workout) {
-          if (workout == null)
+          if (workout == null) {
             return const Center(child: Text('Workout not found'));
+          }
 
           return Column(
             children: [
@@ -74,7 +74,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Дата тренировки
+                      // Дата
                       Row(
                         children: [
                           const Icon(
@@ -92,27 +92,19 @@ class WorkoutDetailScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      if (workout.notes?.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 8),
+                        Text('Notes: ${workout.notes}'),
+                      ],
                       const SizedBox(height: 12),
                       const Divider(),
-                      const SizedBox(height: 8),
-                      // Параметры
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildStatColumn('Sets', workout.sets.toString()),
-                          _buildStatColumn('Reps', workout.reps.toString()),
-                          _buildStatColumn(
-                            'Weight',
-                            '${workout.weight.join(', ')} kg',
-                          ),
-                        ],
-                      ),
+                      // ✅ Статистику считаем из упражнений (ниже)
                     ],
                   ),
                 ),
               ),
               const Divider(),
-              // Список упражнений
+              // Заголовок упражнений
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -138,6 +130,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              // ✅ Список упражнений с подходами
               Expanded(
                 child: exercisesAsync.when(
                   data: (exercises) {
@@ -149,32 +142,144 @@ class WorkoutDetailScreen extends ConsumerWidget {
                     return ListView.builder(
                       itemCount: exercises.length,
                       itemBuilder: (context, index) {
-                        final exercise = exercises[index];
-                        return ListTile(
-                          title: Text(exercise.title),
-                          subtitle: Text(exercise.discription),
-                          trailing: PopupMenuButton(
-                            itemBuilder: (ctx) => [
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Edit'),
-                              ),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Text(
-                                  'Delete',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                            onSelected: (value) async {
-                              if (value == 'delete') {
-                                await ref
-                                    .read(exercisesNotifierProvider.notifier)
-                                    .deleteExercise(workoutId, exercise.id);
-                              }
-                            },
+                        final workoutExercise = exercises[index];
+                        return ExpansionTile(
+                          title: Text(workoutExercise.exerciseName),
+                          subtitle: Text(
+                            'Code: ${workoutExercise.exerciseCode}',
                           ),
+                          children: [
+                            // Заголовки таблицы
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Row(
+                                children: const [
+                                  Expanded(
+                                    flex: 1,
+                                    child: Text(
+                                      'Set',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Weight',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Reps',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Done?',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 1),
+                            // Подходы
+                            ...workoutExercise.sets.asMap().entries.map((
+                              entry,
+                            ) {
+                              final setIndex = entry.key + 1;
+                              final set = entry.value;
+                              return ListTile(
+                                dense: true,
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 1,
+                                      child: Text('#$setIndex'),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text('${set.weight} kg'),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text('${set.reps}'),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Checkbox(
+                                        value: set.completed,
+                                        onChanged: (value) async {
+                                          if (value == null) return;
+                                          final updatedSets =
+                                              List<WorkoutSet>.from(
+                                                workoutExercise.sets,
+                                              );
+                                          updatedSets[entry.key] = WorkoutSet(
+                                            weight: set.weight,
+                                            reps: set.reps,
+                                            completed: value,
+                                          );
+                                          await ref
+                                              .read(
+                                                workoutsNotifierProvider
+                                                    .notifier,
+                                              )
+                                              .updateExerciseSets(
+                                                workoutId,
+                                                workoutExercise.id,
+                                                updatedSets,
+                                              );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // Кнопка добавить подход
+                            ListTile(
+                              title: const Text(
+                                'Add Set',
+                                style: TextStyle(color: Colors.blue),
+                              ),
+                              leading: const Icon(
+                                Icons.add_circle_outline,
+                                color: Colors.blue,
+                              ),
+                              onTap: () async {
+                                final updatedSets =
+                                    List<WorkoutSet>.from(workoutExercise.sets)
+                                      ..add(
+                                        WorkoutSet(
+                                          weight: 0,
+                                          reps: 0,
+                                          completed: false,
+                                        ),
+                                      );
+                                await ref
+                                    .read(workoutsNotifierProvider.notifier)
+                                    .updateExerciseSets(
+                                      workoutId,
+                                      workoutExercise.id,
+                                      updatedSets,
+                                    );
+                              },
+                            ),
+                          ],
                         );
                       },
                     );
@@ -190,20 +295,6 @@ class WorkoutDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Error: $err')),
       ),
-    );
-  }
-
-  // Вспомогательный виджет для статистики
-  Widget _buildStatColumn(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      ],
     );
   }
 }
