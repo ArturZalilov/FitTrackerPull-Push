@@ -4,8 +4,8 @@ import 'workouts_model.dart';
 class WorkoutsRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Создать тренировку
-  Future<String> createWorkout(String userId, WorkoutsModel workout) async {
+  // 🔹 Создать тренировку
+  Future<String> createWorkout(String userId, WorkoutModel workout) async {
     final doc = await _firestore
         .collection('users')
         .doc(userId)
@@ -14,38 +14,76 @@ class WorkoutsRepository {
     return doc.id;
   }
 
-  // Получить все тренировки пользователя (сортировка по дате)
-  Stream<List<WorkoutsModel>> getUserWorkouts(String userId) {
+  // 🔹 Получить все тренировки пользователя
+  Stream<List<WorkoutModel>> getUserWorkouts(String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
         .collection('workouts')
-        .orderBy('date', descending: true) // ✅ Сортируем по дате
+        .orderBy('date', descending: true)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
-              .map((doc) => WorkoutsModel.fromMap(doc.data(), doc.id))
+              .map((doc) => WorkoutModel.fromMap(doc.data(), doc.id))
               .toList(),
         );
   }
 
-  // Обновить тренировку
-  Future<void> updateWorkout(
+  // 🔹 Добавить упражнение в тренировку
+  Future<String> addExerciseToWorkout(
     String userId,
     String workoutId,
-    WorkoutsModel workout,
+    WorkoutExercise exercise,
+  ) async {
+    final doc = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('workouts')
+        .doc(workoutId)
+        .collection('exercises')
+        .add(exercise.toMap());
+    return doc.id;
+  }
+
+  // 🔹 Получить упражнения конкретной тренировки
+  Stream<List<WorkoutExercise>> getWorkoutExercises(
+    String userId,
+    String workoutId,
+  ) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('workouts')
+        .doc(workoutId)
+        .collection('exercises')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => WorkoutExercise.fromMap(doc.data(), doc.id))
+              .toList(),
+        );
+  }
+
+  // 🔹 Обновить подходы упражнения в тренировке
+  Future<void> updateWorkoutExerciseSets(
+    String userId,
+    String workoutId,
+    String exerciseId,
+    List<WorkoutSet> sets,
   ) async {
     await _firestore
         .collection('users')
         .doc(userId)
         .collection('workouts')
         .doc(workoutId)
-        .update(workout.toMap());
+        .collection('exercises')
+        .doc(exerciseId)
+        .update({'sets': sets.map((s) => s.toMap()).toList()});
   }
 
-  // Удалить тренировку
+  // 🔹 Удалить тренировку (и все её упражнения)
   Future<void> deleteWorkout(String userId, String workoutId) async {
-    // Сначала удаляем упражнения
+    // Сначала удаляем все упражнения тренировки
     final exercisesSnapshot = await _firestore
         .collection('users')
         .doc(userId)
@@ -67,19 +105,5 @@ class WorkoutsRepository {
         .collection('workouts')
         .doc(workoutId)
         .delete();
-  }
-
-  // Получить одну тренировку
-  Future<WorkoutsModel?> getWorkout(String userId, String workoutId) async {
-    final doc = await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('workouts')
-        .doc(workoutId)
-        .get();
-    if (doc.exists) {
-      return WorkoutsModel.fromMap(doc.data()!, doc.id);
-    }
-    return null;
   }
 }

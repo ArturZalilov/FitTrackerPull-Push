@@ -5,17 +5,26 @@ import 'workouts_model.dart';
 
 final workoutsRepositoryProvider = Provider((ref) => WorkoutsRepository());
 
-final userWorkoutsProvider = StreamProvider.family<List<WorkoutsModel>, String>(
-  (ref, userId) {
-    return ref.read(workoutsRepositoryProvider).getUserWorkouts(userId);
-  },
-);
+// 🔹 Список тренировок пользователя
+final userWorkoutsProvider = StreamProvider.family<List<WorkoutModel>, String>((
+  ref,
+  userId,
+) {
+  return ref.read(workoutsRepositoryProvider).getUserWorkouts(userId);
+});
 
+// 🔹 Одна тренировка
 final workoutProvider =
-    FutureProvider.family<WorkoutsModel?, Map<String, String>>((ref, params) {
-      final userId = params['userId']!;
-      final workoutId = params['workoutId']!;
-      return ref.read(workoutsRepositoryProvider).getWorkout(userId, workoutId);
+    FutureProvider.family<WorkoutModel?, Map<String, String>>((
+      ref,
+      params,
+    ) async {
+      final userId = params['userId'];
+      final workoutId = params['workoutId'];
+      if (userId == null || workoutId == null) return null;
+      return await ref
+          .read(workoutsRepositoryProvider)
+          .getWorkout(userId, workoutId);
     });
 
 class WorkoutsNotifier extends Notifier<void> {
@@ -25,50 +34,52 @@ class WorkoutsNotifier extends Notifier<void> {
   WorkoutsRepository get _repo => ref.read(workoutsRepositoryProvider);
   String? get _userId => ref.read(authRepositoryProvider).currentUserId;
 
-  // Создать тренировку с датой
-  Future<void> createWorkout(
-    int sets,
-    List<double> weight,
-    int reps,
-    DateTime date,
-  ) async {
+  // 🔹 Создать новую тренировку
+  Future<void> createWorkout(DateTime date, String? notes) async {
     final userId = _userId;
     if (userId == null) throw Exception('User not authenticated');
 
-    final workout = WorkoutsModel(
+    final workout = WorkoutModel(
       id: '',
-      sets: sets,
-      weight: weight,
-      reps: reps,
       date: date,
+      notes: notes,
+      exercises: [],
     );
 
     await _repo.createWorkout(userId, workout);
   }
 
-  // Обновить тренировку
-  Future<void> updateWorkout(
+  // 🔹 Добавить упражнение в тренировку
+  Future<void> addExerciseToWorkout(
     String workoutId,
-    int sets,
-    List<double> weight,
-    int reps,
-    DateTime date,
+    String exerciseCode,
+    String exerciseName,
   ) async {
     final userId = _userId;
     if (userId == null) return;
 
-    final workout = WorkoutsModel(
-      id: workoutId,
-      sets: sets,
-      weight: weight,
-      reps: reps,
-      date: date,
+    final workoutExercise = WorkoutExercise(
+      id: '',
+      exerciseCode: exerciseCode,
+      exerciseName: exerciseName,
+      sets: [],
     );
 
-    await _repo.updateWorkout(userId, workoutId, workout);
+    await _repo.addExerciseToWorkout(userId, workoutId, workoutExercise);
   }
 
-  // Удалить тренировку
+  // 🔹 Обновить подходы упражнения
+  Future<void> updateExerciseSets(
+    String workoutId,
+    String exerciseId,
+    List<WorkoutSet> sets,
+  ) async {
+    final userId = _userId;
+    if (userId == null) return;
+    await _repo.updateWorkoutExerciseSets(userId, workoutId, exerciseId, sets);
+  }
+
+  // 🔹 Удалить тренировку
   Future<void> deleteWorkout(String workoutId) async {
     final userId = _userId;
     if (userId == null) return;

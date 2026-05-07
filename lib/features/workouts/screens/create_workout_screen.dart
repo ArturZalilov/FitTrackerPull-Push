@@ -1,6 +1,12 @@
+// 📁 lib/features/workouts/screens/create_workout_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../workouts_notifier.dart';
+import '../../exercises/exercises_notifier.dart';
+import '../../auth/auth_notifier.dart'; // ✅ ДОБАВЬ ЭТУ СТРОКУ!
+
+// ... остальной код ...
 
 class CreateWorkoutScreen extends ConsumerStatefulWidget {
   const CreateWorkoutScreen({super.key});
@@ -12,75 +18,121 @@ class CreateWorkoutScreen extends ConsumerStatefulWidget {
 
 class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _setsController = TextEditingController();
-  final _repsController = TextEditingController();
-  final _weightController = TextEditingController();
-  DateTime _selectedDate = DateTime.now(); // ✅ Дата по умолчанию — сегодня
+  DateTime _selectedDate = DateTime.now();
+  final _notesController = TextEditingController();
+  final _selectedExercises = <String, String>{}; // code → name
 
   @override
   void dispose() {
-    _setsController.dispose();
-    _repsController.dispose();
-    _weightController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
-  // 📅 Выбор даты
   Future<void> _selectDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.blue,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  // 🔹 Диалог выбора упражнения из глобальной библиотеки
+  void _addExerciseDialog() {
+    final userId = ref.read(authRepositoryProvider).currentUserId;
+    if (userId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final exercisesAsync = ref.watch(userExercisesProvider(userId));
+        return AlertDialog(
+          title: const Text('Add Exercise'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: exercisesAsync.when(
+              data: (exercises) {
+                if (exercises.isEmpty) {
+                  return const Text('No exercises yet. Create one first!');
+                }
+                return ListView(
+                  shrinkWrap: true,
+                  children: exercises.map((ex) {
+                    final isSelected = _selectedExercises.containsKey(ex.code);
+                    return CheckboxListTile(
+                      title: Text(ex.name),
+                      subtitle: Text(ex.description),
+                      value: isSelected,
+                      onChanged: (checked) {
+                        if (checked == true) {
+                          setState(() => _selectedExercises[ex.code] = ex.name);
+                        } else {
+                          setState(() => _selectedExercises.remove(ex.code));
+                        }
+                      },
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const CircularProgressIndicator(),
+              error: (err, _) => Text('Error: $err'),
             ),
           ),
-          child: child!,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                // Упражнения добавятся после создания тренировки
+              },
+              child: const Text('Add'),
+            ),
+          ],
         );
       },
     );
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
-    }
   }
 
-  // Форматирование даты для отображения
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
-  void _handleSave() async {
+  void _handleCreate() async {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      final sets = int.tryParse(_setsController.text) ?? 0;
-      final reps = int.tryParse(_repsController.text) ?? 0;
-      final weightStr = _weightController.text
-          .split(',')
-          .map((s) => double.tryParse(s.trim()) ?? 0.0)
-          .toList();
+      // 1. Создаём тренировку
+      final userId = ref.read(authRepositoryProvider).currentUserId;
+      if (userId == null) return;
 
-      await ref
-          .read(workoutsNotifierProvider.notifier)
+      final workoutId = await ref
+          .read(workoutsRepositoryProvider)
           .createWorkout(
-            sets,
-            weightStr,
-            reps,
-            _selectedDate, // ✅ Передаём дату
+            userId,
+            WorkoutModel(
+              id: '',
+              date: _selectedDate,
+              notes: _notesController.text.trim(),
+              exercises: [],
+            ),
           );
+
+      // 2. Добавляем выбранные упражнения
+      for (final entry in _selectedExercises.entries) {
+        await ref
+            .read(workoutsNotifierProvider.notifier)
+            .addExerciseToWorkout(
+              workoutId,
+              entry.key, // exerciseCode
+              entry.value, // exerciseName
+            );
+      }
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -97,7 +149,7 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 📅 Поле выбора даты
+              // Дата
               InkWell(
                 onTap: () => _selectDate(context),
                 child: InputDecorator(
@@ -107,57 +159,62 @@ class _CreateWorkoutScreenState extends ConsumerState<CreateWorkoutScreen> {
                     prefixIcon: Icon(Icons.calendar_today),
                   ),
                   child: Text(
-                    _formatDate(_selectedDate),
-                    style: const TextStyle(fontSize: 16),
+                    '${_selectedDate.day}.${_selectedDate.month}.${_selectedDate.year}',
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              // Sets
+              // Заметки
               TextFormField(
-                controller: _setsController,
+                controller: _notesController,
                 decoration: const InputDecoration(
-                  labelText: 'Sets *',
-                  hintText: 'e.g., 3',
+                  labelText: 'Notes',
+                  hintText: 'Optional notes...',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              // Reps
-              TextFormField(
-                controller: _repsController,
-                decoration: const InputDecoration(
-                  labelText: 'Reps *',
-                  hintText: 'e.g., 10',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              // Weight
-              TextFormField(
-                controller: _weightController,
-                decoration: const InputDecoration(
-                  labelText: 'Weight (kg) *',
-                  hintText: 'e.g., 50, 60, 70',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                maxLines: 2,
               ),
               const SizedBox(height: 24),
-              // Save button
+              // Выбранные упражнения
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Exercises:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextButton.icon(
+                    onPressed: _addExerciseDialog,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add'),
+                  ),
+                ],
+              ),
+              if (_selectedExercises.isEmpty)
+                const Text(
+                  'No exercises selected',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ..._selectedExercises.entries.map(
+                (e) => ListTile(
+                  title: Text(e.value),
+                  subtitle: Text('Code: ${e.key}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () =>
+                        setState(() => _selectedExercises.remove(e.key)),
+                  ),
+                ),
+              ),
+              const Spacer(),
               ElevatedButton(
-                onPressed: _handleSave,
+                onPressed: _handleCreate,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Save Workout'),
+                child: const Text('Create Workout'),
               ),
             ],
           ),

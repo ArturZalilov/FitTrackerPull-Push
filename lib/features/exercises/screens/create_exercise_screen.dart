@@ -12,20 +12,17 @@ class CreateExerciseScreen extends ConsumerStatefulWidget {
 
 class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _discriptionController = TextEditingController();
-  late final String _workoutId;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _workoutId = ModalRoute.of(context)!.settings.arguments as String;
-  }
+  final _codeController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _recordController = TextEditingController();
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _discriptionController.dispose();
+    _codeController.dispose();
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _recordController.dispose();
     super.dispose();
   }
 
@@ -36,15 +33,16 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen> {
       await ref
           .read(exercisesNotifierProvider.notifier)
           .createExercise(
-            _workoutId,
-            _titleController.text.trim(),
-            _discriptionController.text.trim(),
+            _codeController.text.trim().toLowerCase().replaceAll(' ', '_'),
+            _nameController.text.trim(),
+            _descriptionController.text.trim(),
+            num.tryParse(_recordController.text) ?? 0,
           );
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -53,7 +51,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Exercise')),
+      appBar: AppBar(title: const Text('New Exercise')),
       body: Form(
         key: _formKey,
         child: Padding(
@@ -62,23 +60,44 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
-                controller: _titleController,
+                controller: _codeController,
                 decoration: const InputDecoration(
-                  labelText: 'Title *',
-                  hintText: 'e.g., Squat',
+                  labelText: 'Code *',
+                  hintText: 'e.g., bench_press',
+                  helperText: 'Unique identifier (lowercase, underscores)',
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _discriptionController,
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name *',
+                  hintText: 'e.g., Bench Press',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Description',
-                  hintText: 'Exercise details...',
+                  hintText: 'How to perform...',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _recordController,
+                decoration: const InputDecoration(
+                  labelText: 'Personal Record',
+                  hintText: 'e.g., 100',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 24),
               ElevatedButton(

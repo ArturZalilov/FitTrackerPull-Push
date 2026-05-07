@@ -4,78 +4,65 @@ import '../exercises_notifier.dart';
 import '../../auth/auth_notifier.dart';
 
 class ExercisesScreen extends ConsumerWidget {
-  final String? workoutId;
-
-  const ExercisesScreen({super.key, this.workoutId});
+  const ExercisesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userId = ref.read(authRepositoryProvider).currentUserId;
     if (userId == null) return const Scaffold();
 
-    // ✅ Проверка: если workoutId нет — показываем заглушку
-    if (workoutId == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Exercises')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.fitness_center, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'Select a workout to view exercises',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Go to Workouts tab and choose a training',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // ✅ Теперь workoutId точно не null — можно использовать !
-    final exercisesAsync = ref.watch(
-      workoutExercisesProvider({'userId': userId, 'workoutId': workoutId!}),
-    );
+    final exercisesAsync = ref.watch(userExercisesProvider(userId));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Exercises'),
+        title: const Text('My Exercises'),
         actions: [
+          // ✅ Кнопка создания нового глобального упражнения
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => Navigator.pushNamed(
-              context,
-              '/create-exercise',
-              arguments: workoutId,
-            ),
+            onPressed: () => Navigator.pushNamed(context, '/create-exercise'),
           ),
         ],
       ),
       body: exercisesAsync.when(
         data: (exercises) {
           if (exercises.isEmpty) {
-            return const Center(child: Text('No exercises. Tap + to add.'));
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.fitness_center, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('No exercises yet'),
+                  Text('Tap + to create your first exercise'),
+                ],
+              ),
+            );
           }
           return ListView.builder(
             itemCount: exercises.length,
             itemBuilder: (context, index) {
               final exercise = exercises[index];
               return ListTile(
-                title: Text(exercise.title),
-                subtitle: Text(exercise.discription),
-                trailing: const Icon(Icons.chevron_right),
+                title: Text(exercise.name),
+                subtitle: Text(exercise.description),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('PR: ${exercise.record}'),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
                 onTap: () {
+                  // Можно открыть экран прогресса по этому упражнению
                   Navigator.pushNamed(
                     context,
                     '/exercise-progress',
-                    arguments: exercise.id,
+                    arguments: {
+                      'exerciseCode': exercise.code,
+                      'exerciseName': exercise.name,
+                    },
                   );
                 },
               );

@@ -1,55 +1,103 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class WorkoutsModel {
-  final String id;
-  final int sets;
-  final List<double> weight;
+// 🔹 Подход в конкретной тренировке
+class WorkoutSet {
+  final num weight;
   final int reps;
-  final DateTime date; // ✅ Новое поле
+  final bool completed;
 
-  WorkoutsModel({
-    required this.id,
-    required this.sets,
+  WorkoutSet({
     required this.weight,
     required this.reps,
-    required this.date,
+    this.completed = false,
   });
 
-  // Из Firestore → Модель
-  factory WorkoutsModel.fromMap(Map<String, dynamic> map, String id) {
-    return WorkoutsModel(
-      id: id,
-      sets: map['sets'] ?? 0,
-      weight: List<double>.from(map['weight'] ?? []),
+  Map<String, dynamic> toMap() => {
+    'weight': weight,
+    'reps': reps,
+    'completed': completed,
+  };
+
+  factory WorkoutSet.fromMap(Map<String, dynamic> map) {
+    return WorkoutSet(
+      weight: map['weight'] ?? 0,
       reps: map['reps'] ?? 0,
+      completed: map['completed'] ?? false,
+    );
+  }
+}
+
+// 🔹 Упражнение ВНУТРИ тренировки (ссылка на глобальное + подходы)
+class WorkoutExercise {
+  final String id; // ID документа в подколлекции
+  final String exerciseCode; // 🔗 Ссылка на глобальное упражнение
+  final String exerciseName; // 📋 Копия названия для быстрого отображения
+  final List<WorkoutSet> sets; // 📊 Подходы этой тренировки
+
+  WorkoutExercise({
+    required this.id,
+    required this.exerciseCode,
+    required this.exerciseName,
+    required this.sets,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'exerciseCode': exerciseCode,
+    'exerciseName': exerciseName,
+    'sets': sets.map((s) => s.toMap()).toList(),
+  };
+
+  factory WorkoutExercise.fromMap(Map<String, dynamic> map, String id) {
+    return WorkoutExercise(
+      id: id,
+      exerciseCode: map['exerciseCode'] ?? '',
+      exerciseName: map['exerciseName'] ?? '',
+      sets:
+          (map['sets'] as List?)
+              ?.map((s) => WorkoutSet.fromMap(s as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+// 🔹 Сама тренировка
+class WorkoutModel {
+  final String id;
+  final DateTime date;
+  final String? notes;
+  final List<WorkoutExercise> exercises; // Список упражнений этой тренировки
+
+  WorkoutModel({
+    required this.id,
+    required this.date,
+    this.notes,
+    required this.exercises,
+  });
+
+  factory WorkoutModel.fromMap(Map<String, dynamic> map, String id) {
+    return WorkoutModel(
+      id: id,
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      notes: map['notes'],
+      exercises:
+          (map['exercises'] as List?)
+              ?.map(
+                (e) => WorkoutExercise.fromMap(
+                  e as Map<String, dynamic>,
+                  e['id'] ?? '',
+                ),
+              )
+              .toList() ??
+          [],
     );
   }
 
-  // Модель → Firestore
   Map<String, dynamic> toMap() {
     return {
-      'sets': sets,
-      'weight': weight,
-      'reps': reps,
-      'date': Timestamp.fromDate(date), // ✅ Сохраняем как Timestamp
+      'date': Timestamp.fromDate(date),
+      'notes': notes,
+      'exercises': exercises.map((e) => e.toMap()).toList(),
     };
-  }
-
-  // Копирование с обновлением полей
-  WorkoutsModel copyWith({
-    String? id,
-    int? sets,
-    List<double>? weight,
-    int? reps,
-    DateTime? date,
-  }) {
-    return WorkoutsModel(
-      id: id ?? this.id,
-      sets: sets ?? this.sets,
-      weight: weight ?? this.weight,
-      reps: reps ?? this.reps,
-      date: date ?? this.date,
-    );
   }
 }
