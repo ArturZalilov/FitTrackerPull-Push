@@ -6,10 +6,8 @@ import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/main_layout.dart';
-import 'features/workouts/screens/create_workout_screen.dart';
 import 'features/workouts/screens/workout_detail_screen.dart';
 import 'features/exercises/screens/create_exercise_screen.dart';
-import 'features/exercises/screens/add_exercise_screen.dart';
 import 'features/exercises/screens/exercise_progress_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -39,20 +37,16 @@ class FitTrackApp extends ConsumerWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/app': (context) => const MainLayout(),
-        '/create-workout': (context) => const CreateWorkoutScreen(),
 
-        // ✅ Просто передаём экран (он сам прочитает arguments)
+        // ✅ Унифицированный маршрут для тренировки:
         '/workout-detail': (context) {
           final workoutId =
-              ModalRoute.of(context)!.settings.arguments as String;
+              ModalRoute.of(context)?.settings.arguments as String?;
           return WorkoutDetailScreen(workoutId: workoutId);
         },
 
         // ✅ УБРАЛИ workoutId - экран сам прочитает из arguments
         '/create-exercise': (context) => const CreateExerciseScreen(),
-
-        // ✅ УБРАЛИ workoutId - экран сам прочитает из arguments
-        '/add-exercise': (context) => const AddExerciseScreen(),
 
         '/exercise-sets': (context) => const Scaffold(),
 

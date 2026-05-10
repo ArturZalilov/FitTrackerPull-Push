@@ -1,6 +1,8 @@
+// 📁 lib/features/workouts/screens/workouts_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../workouts_notifier.dart';
+import 'workout_detail_screen.dart'; // ✅ Импортируем унифицированный экран
 import '../../auth/auth_notifier.dart';
 
 class WorkoutsScreen extends ConsumerWidget {
@@ -10,7 +12,6 @@ class WorkoutsScreen extends ConsumerWidget {
     final now = DateTime.now();
     final yesterday = DateTime(now.year, now.month, now.day - 1);
     final workoutDate = DateTime(date.year, date.month, date.day);
-
     if (workoutDate == now) return 'Today';
     if (workoutDate == yesterday) return 'Yesterday';
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}';
@@ -19,7 +20,6 @@ class WorkoutsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userId = ref.read(authRepositoryProvider).currentUserId;
-
     if (userId == null) {
       return const Scaffold(body: Center(child: Text('Please login')));
     }
@@ -48,7 +48,6 @@ class WorkoutsScreen extends ConsumerWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ✅ Вместо sets/reps показываем дату
                       Text(_formatDate(workout.date)),
                       if (workout.notes?.isNotEmpty ?? false)
                         Text(
@@ -62,10 +61,13 @@ class WorkoutsScreen extends ConsumerWidget {
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    Navigator.pushNamed(
+                    // ✅ Открываем тот же экран для просмотра/редактирования
+                    Navigator.push(
                       context,
-                      '/workout-detail',
-                      arguments: workout.id,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            WorkoutDetailScreen(workoutId: workout.id),
+                      ),
                     );
                   },
                 ),
@@ -77,7 +79,16 @@ class WorkoutsScreen extends ConsumerWidget {
         error: (err, _) => Center(child: Text('Error: $err')),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/create-workout'),
+        // ✅ Открываем тот же экран для создания новой тренировки
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  const WorkoutDetailScreen(workoutId: null), // null = создание
+            ),
+          );
+        },
         child: const Icon(Icons.add),
       ),
     );
