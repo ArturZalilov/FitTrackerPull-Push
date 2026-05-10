@@ -19,12 +19,14 @@ class _ExerciseProgressScreenState
     extends ConsumerState<ExerciseProgressScreen> {
   String? _exerciseCode;
   String? _exerciseName;
-  bool _showMaxWeight = true; // Переключатель: макс. вес / средний вес
+  bool _showMaxWeight = true;
+
+  // ✅ Кэшируем будущее, чтобы оно не пересоздавалось при ребилдах
+  Future<List<_ChartData>>? _chartDataFuture;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ✅ Безопасное извлечение аргументов
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     _exerciseCode = args?['exerciseCode'] as String?;
@@ -63,7 +65,11 @@ class _ExerciseProgressScreenState
           ),
         ),
         child: workoutsAsync.when(
-          data: (workouts) => _buildContent(workouts),
+          data: (workouts) {
+            // ✅ Создаём будущее ТОЛЬКО один раз при изменении списка тренировок
+            _chartDataFuture ??= _collectChartData(workouts);
+            return _buildContent(workouts);
+          },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) =>
               _buildEmptyState('Error loading data', err.toString()),
@@ -126,12 +132,14 @@ class _ExerciseProgressScreenState
     }
 
     return FutureBuilder<List<_ChartData>>(
-      future: _collectChartData(workouts),
+      // ✅ Используем кэшированное будущее
+      future: _chartDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
+          debugPrint('❌ Chart error: ${snapshot.error}');
           return _buildEmptyState('Error', 'Could not load chart data');
         }
 
@@ -145,13 +153,9 @@ class _ExerciseProgressScreenState
 
         return Column(
           children: [
-            // 📊 Статистика
             _buildStatsCard(data),
-            // 🔄 Переключатель типа данных
             _buildToggleSwitch(),
-            // 📈 График
             Expanded(child: _buildChart(data)),
-            // 📋 Легенда
             _buildLegend(),
           ],
         );
@@ -161,6 +165,8 @@ class _ExerciseProgressScreenState
 
   // 🔹 Карточка со статистикой
   Widget _buildStatsCard(List<_ChartData> data) {
+    if (data.isEmpty) return const SizedBox.shrink();
+
     final maxWeight = data.map((d) => d.value).reduce((a, b) => a > b ? a : b);
     final minWeight = data.map((d) => d.value).reduce((a, b) => a < b ? a : b);
     final improvement = maxWeight - minWeight;
@@ -236,7 +242,11 @@ class _ExerciseProgressScreenState
   Widget _buildToggleOption(String label, bool isMax) {
     final isSelected = _showMaxWeight == isMax;
     return GestureDetector(
-      onTap: () => setState(() => _showMaxWeight = isMax),
+      onTap: () {
+        setState(() => _showMaxWeight = isMax);
+        // ✅ Сбрасываем кэш при переключении, чтобы пересчитать данные
+        _chartDataFuture = null;
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -256,11 +266,33 @@ class _ExerciseProgressScreenState
   }
 
   // 🔹 Сам график
+  // 🔹 Сам график (ИСПРАВЛЕННЫЙ)
   Widget _buildChart(List<_ChartData> data) {
+    if (data.isEmpty) return const SizedBox.shrink();
+
     final spots = data.map((d) => FlSpot(d.x, d.value)).toList();
-    final minY = data.map((d) => d.value).reduce((a, b) => a < b ? a : b);
-    final maxY = data.map((d) => d.value).reduce((a, b) => a > b ? a : b);
-    final padding = (maxY - minY) * 0.2;
+
+    // ✅ Находим minY и maxY с проверкой
+    final values = data.map((d) => d.value).toList();
+    double minY = values.reduce((a, b) => a < b ? a : b);
+    double maxY = values.reduce((a, b) => a > b ? a : b);
+
+    // ✅ Если все значения одинаковые (всего 1 точка или одинаковый вес)
+    if (minY == maxY) {
+      // Добавляем отступ 20% от значения
+      final padding = maxY * 0.2;
+      minY = minY - padding;
+      maxY = maxY + padding;
+    } else {
+      // Обычный паддинг
+      final padding = (maxY - minY) * 0.2;
+      minY = minY - padding;
+      maxY = maxY + padding;
+    }
+
+    // ✅ Вычисляем интервал сетки (не меньше 1!)
+    final horizontalInterval = (maxY - minY) / 4;
+    final safeInterval = horizontalInterval > 0 ? horizontalInterval : 1.0;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -270,7 +302,8 @@ class _ExerciseProgressScreenState
             show: true,
             drawHorizontalLine: true,
             drawVerticalLine: false,
-            horizontalInterval: (maxY - minY) / 4,
+            horizontalInterval:
+                safeInterval, // ✅ Используем безопасное значение
             getDrawingHorizontalLine: (value) => FlLine(
               color: Colors.grey.shade300,
               strokeWidth: 0.5,
@@ -317,9 +350,11 @@ class _ExerciseProgressScreenState
           ),
           borderData: FlBorderData(show: false),
           minX: 0,
-          maxX: data.length - 1,
-          minY: minY - padding,
-          maxY: maxY + padding,
+          maxX: data.length > 1
+              ? data.length.toDouble() - 1
+              : 1.0, // ✅ minX != maxX
+          minY: minY,
+          maxY: maxY,
           lineBarsData: [
             LineChartBarData(
               spots: spots,
@@ -388,24 +423,32 @@ class _ExerciseProgressScreenState
     );
   }
 
-  // 🔹 Сбор данных для графика
+  // 🔹 Сбор данных для графика (с таймаутом!)
   Future<List<_ChartData>> _collectChartData(
     List<WorkoutModel> workouts,
   ) async {
+    debugPrint('🔍 [Chart] Start collecting data for exercise: $_exerciseCode');
     final result = <_ChartData>[];
     final userId = ref.read(authRepositoryProvider).currentUserId!;
     int index = 0;
 
-    // Сортируем от старых к новым
     final sortedWorkouts = List.of(workouts)
       ..sort((a, b) => a.date.compareTo(b.date));
 
     for (final workout in sortedWorkouts) {
       try {
-        // ✅ Стало (правильно):
-        final exercises = await ref.read(
-          workoutExercisesProvider('$userId|${workout.id}').future,
-        );
+        // ✅ Добавляем таймаут 5 секунд на каждый запрос
+        final exercises = await ref
+            .read(workoutExercisesProvider('$userId|${workout.id}').future)
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                debugPrint(
+                  '⏰ Timeout loading exercises for workout ${workout.id}',
+                );
+                return <WorkoutExercise>[];
+              },
+            );
 
         final matching = exercises
             .where((ex) => ex.exerciseCode == _exerciseCode)
@@ -417,33 +460,36 @@ class _ExerciseProgressScreenState
 
         double value = 0;
         if (_showMaxWeight) {
-          // Максимальный вес среди всех подходов
-          value = matching
+          final weights = matching
               .expand((ex) => ex.sets)
               .map((s) => s.weight)
-              .reduce((a, b) => a > b ? a : b)
-              .toDouble();
+              .toList();
+          if (weights.isNotEmpty) {
+            value = weights.reduce((a, b) => a > b ? a : b).toDouble();
+          }
         } else {
-          // Средний вес среди завершённых подходов
           final completed = matching.expand(
             (ex) => ex.sets.where((s) => s.completed),
           );
-          if (completed.isNotEmpty) {
-            value =
-                completed.map((s) => s.weight).reduce((a, b) => a + b) /
-                completed.length;
+          final weights = completed.map((s) => s.weight).toList();
+          if (weights.isNotEmpty) {
+            value = weights.reduce((a, b) => a + b) / weights.length;
           }
         }
 
-        result.add(
-          _ChartData(x: index.toDouble(), value: value, date: workout.date),
-        );
+        if (value > 0) {
+          result.add(
+            _ChartData(x: index.toDouble(), value: value, date: workout.date),
+          );
+        }
         index++;
       } catch (e) {
         debugPrint('⚠️ Error loading exercises for workout ${workout.id}: $e');
+        // Продолжаем обработку остальных тренировок
       }
     }
 
+    debugPrint('✅ Chart data collected: ${result.length} points');
     return result;
   }
 }

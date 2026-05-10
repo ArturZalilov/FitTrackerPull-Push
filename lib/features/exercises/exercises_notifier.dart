@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_notifier.dart';
 import 'exercises_repository.dart';
@@ -52,10 +53,14 @@ class ExercisesNotifier extends Notifier<void> {
     );
   }
 
+  // ✅ НОВЫЙ МЕТОД: Удаление упражнения
   Future<void> deleteExercise(String exerciseId) async {
     final userId = _userId;
-    if (userId == null) return;
+    if (userId == null) throw Exception('User not authenticated');
+
+    debugPrint('🗑️ [ExercisesNotifier] Удаление упражнения: $exerciseId');
     await _repo.deleteExercise(userId, exerciseId);
+    debugPrint('✅ [ExercisesNotifier] Упражнение удалено успешно');
   }
 }
 
