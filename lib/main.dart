@@ -6,6 +6,7 @@ import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/main_layout.dart';
+import 'features/workouts/screens/select_exercise_screen.dart';
 import 'features/workouts/screens/workout_detail_screen.dart';
 import 'features/exercises/screens/create_exercise_screen.dart';
 import 'features/exercises/screens/exercise_progress_screen.dart';
@@ -43,6 +44,19 @@ class FitTrackApp extends ConsumerWidget {
           final workoutId =
               ModalRoute.of(context)?.settings.arguments as String?;
           return WorkoutDetailScreen(workoutId: workoutId);
+        },
+        // ✅ НОВЫЙ МАРШРУТ:
+        '/select-exercise': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
+
+          return SelectExerciseScreen(
+            workoutId: args?['workoutId'] as String,
+            existingExerciseCodes: args?['existingCodes'] != null
+                ? List<String>.from(args!['existingCodes'])
+                : [],
+          );
         },
 
         // ✅ УБРАЛИ workoutId - экран сам прочитает из arguments
