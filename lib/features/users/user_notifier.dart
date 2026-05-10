@@ -1,71 +1,51 @@
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fit_tracker_pull_and_push/features/users/user_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../auth/auth_notifier.dart';
+import 'user_model.dart';
 
-final userNotifierProvider = AsyncNotifierProvider<UserNotifier, UserProfile>(
-  () {
-    return UserNotifier();
-  },
-);
+final userNotifierProvider = StreamProvider<UserProfile?>((ref) {
+  final userId = ref.read(authRepositoryProvider).currentUserId;
 
-class UserNotifier extends AsyncNotifier<UserProfile> {
-  StreamSubscription? _subscription;
-  @override
-  Future<UserProfile> build() async {
-    final uid = ref.read(authRepositoryProvider).currentUserId;
-    if (uid == null) {
-      return UserProfile(
-        id: '',
-        name: '',
-        lastName: '',
-        weight: '',
-        height: '',
-      );
-    }
-    _subscription = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .snapshots() // 🔥 Стрим: Firebase сам пришлёт обновление
-        .listen(
-          (snapshot) {
-            if (snapshot.exists) {
-              final data = snapshot.data()!;
-              state = AsyncValue.data(UserProfile.fromMap(data, uid));
-            }
-          },
-          onError: (error, _) {
-            state = AsyncValue.error(error, StackTrace.current);
-          },
-        );
+  debugPrint('🔍 [UserNotifier] userId: $userId');
 
-    return UserProfile(
-      id: uid,
-      name: state.value!.name,
-      lastName: state.value!.lastName,
-      weight: state.value!.weight,
-      height: state.value!.height,
+  if (userId == null) {
+    debugPrint(
+      '⚠️ [UserNotifier] userId is null — пользователь не авторизован',
     );
+    return Stream.value(null);
   }
 
-  //Обновление данных профиля
-  /*   Future<void> userUpdate(
-    String name,
-    String lastName,
-    String weight,
-    String height,
-  ) async {
-    final uid = state.value?.id;
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'name': name,
-      'lastName': lastName,
-      'weight': weight,
-      'height': height,
-    });
-  } */
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .snapshots()
+      .map((snapshot) {
+        debugPrint('📡 [UserNotifier] snapshot.exists: ${snapshot.exists}');
+        if (snapshot.exists) {
+          debugPrint('📡 [UserNotifier] snapshot. ${snapshot.data()}');
+        }
 
-  void dispose() {
-    _subscription?.cancel();
-  }
-}
+        if (!snapshot.exists) {
+          debugPrint('⚠️ [UserNotifier] Документ не найден');
+          return null;
+        }
+
+        try {
+          final profile = UserProfile.fromMap(snapshot.data()!, snapshot.id);
+          debugPrint('✅ [UserNotifier] Профиль загружен: ${profile.name}');
+          return profile;
+        } catch (e, stack) {
+          debugPrint('❌ [UserNotifier] Ошибка парсинга: $e');
+          debugPrint('📋 Stack: $stack');
+          rethrow;
+        }
+      })
+      .handleError((error, stack) {
+        // 🔥 ЛОВИМ ОШИБКУ СТРИМА И ЛОГИРУЕМ
+        debugPrint('❌ [UserNotifier] Stream error: $error');
+        debugPrint('📋 Stack: $stack');
+        // Пробрасываем ошибку дальше, чтобы экран её увидел
+        throw error;
+      });
+});

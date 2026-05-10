@@ -1,35 +1,39 @@
+// 📁 lib/features/users/user_model.dart
+
 class UserProfile {
   final String id;
   final String name;
   final String lastName;
+  final String email;
   final String weight;
   final String height;
 
-  //конструктор
   UserProfile({
     required this.id,
     required this.name,
     required this.lastName,
+    required this.email,
     required this.weight,
     required this.height,
   });
 
-  //конструктор для преобразование при получении из Firebase
-  factory UserProfile.fromMap(Map<String, dynamic> map, String documentId) {
+  factory UserProfile.fromMap(Map<String, dynamic> map, String id) {
     return UserProfile(
-      id: documentId,
-      name: map['name'] ?? '',
-      lastName: map['lastName'] ?? '',
-      weight: map['weight'] ?? '',
-      height: map['height'] ?? '',
+      id: id,
+      name: map['name'] ?? '', // 🔥 Проверь: в Firebase поле называется 'name'?
+      lastName:
+          map['lastName'] ?? '', // 🔥 Проверь: 'lastName' или 'last_name'?
+      email: map['email'] ?? '', // 🔥 Проверь: есть ли поле 'email'?
+      weight: map['weight'] ?? '', // 🔥 Проверь: 'weight' или 'Weight'?
+      height: map['height'] ?? '', // 🔥 Проверь: 'height' или 'Height'?
     );
   }
 
-  //преобразование для добавления данных в Firebase
   Map<String, dynamic> toMap() {
     return {
       'name': name,
       'lastName': lastName,
+      'email': email,
       'weight': weight,
       'height': height,
     };
