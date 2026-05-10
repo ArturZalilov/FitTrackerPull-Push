@@ -1,15 +1,13 @@
 // 📁 lib/features/workouts/screens/workout_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
 import '../workouts_notifier.dart';
 import '../workouts_model.dart';
 import '../../exercises/exercises_notifier.dart';
 import '../../auth/auth_notifier.dart';
 
 class WorkoutDetailScreen extends ConsumerStatefulWidget {
-  final String?
-  workoutId; // null = создание новой, не null = просмотр существующей
+  final String? workoutId;
 
   const WorkoutDetailScreen({super.key, this.workoutId});
 
@@ -22,8 +20,6 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
   late bool _isCreating;
   late DateTime _selectedDate;
   final _notesController = TextEditingController();
-  final _selectedExerciseCodes =
-      <String, String>{}; // code → name (только для создания)
   bool _isLoading = false;
 
   @override
@@ -39,14 +35,6 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     super.dispose();
   }
 
-  // 🔹 Загрузка данных существующей тренировки
-  void _loadExistingWorkout(WorkoutModel workout) {
-    _selectedDate = workout.date;
-    _notesController.text = workout.notes ?? '';
-    // Упражнения загружаются через workoutExercisesProvider
-  }
-
-  // 🔹 Форматирование даты
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -62,8 +50,8 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  // 🔹 Диалог выбора упражнений (для создания и добавления)
-  void _showExerciseSelectionDialog({bool multiSelect = false}) {
+  // 🔹 Диалог добавления упражнения
+  void _showAddExerciseDialog() {
     final userId = ref.read(authRepositoryProvider).currentUserId;
     if (userId == null) return;
 
@@ -72,7 +60,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       builder: (ctx) {
         final exercisesAsync = ref.watch(userExercisesProvider(userId));
         return AlertDialog(
-          title: Text(multiSelect ? 'Select Exercises' : 'Add Exercise'),
+          title: const Text('Add Exercise'),
           content: SizedBox(
             width: double.maxFinite,
             child: exercisesAsync.when(
@@ -89,74 +77,60 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
                     ],
                   );
                 }
-                if (multiSelect) {
-                  // ✅ Множественный выбор (для создания)
-                  return ListView(
-                    shrinkWrap: true,
-                    children: exercises.map((ex) {
-                      final isSelected = _selectedExerciseCodes.containsKey(
-                        ex.code,
-                      );
-                      return CheckboxListTile(
-                        title: Text(ex.name),
-                        subtitle: Text(ex.description),
-                        value: isSelected,
-                        onChanged: (checked) {
-                          setState(() {
-                            if (checked == true) {
-                              _selectedExerciseCodes[ex.code] = ex.name;
-                            } else {
-                              _selectedExerciseCodes.remove(ex.code);
+                return ListView(
+                  shrinkWrap: true,
+                  children: exercises.map((ex) {
+                    return ListTile(
+                      title: Text(ex.name),
+                      subtitle: Text(ex.description),
+                      trailing: const Icon(Icons.add),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        if (_isCreating) {
+                          // При создании — показываем сообщение, что упражнения добавятся после сохранения
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${ex.name} will be added after saving',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        } else if (widget.workoutId != null) {
+                          // При редактировании — сразу добавляем
+                          try {
+                            await ref
+                                .read(workoutsNotifierProvider.notifier)
+                                .addExerciseToWorkout(
+                                  widget.workoutId!,
+                                  ex.code,
+                                  ex.name,
+                                );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${ex.name} added'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
                             }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  );
-                } else {
-                  // ✅ Одиночный выбор (для добавления в существующую)
-                  return ListView(
-                    shrinkWrap: true,
-                    children: exercises.map((ex) {
-                      return ListTile(
-                        title: Text(ex.name),
-                        subtitle: Text(ex.description),
-                        trailing: const Icon(Icons.add),
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          if (!_isCreating && widget.workoutId != null) {
-                            try {
-                              await ref
-                                  .read(workoutsNotifierProvider.notifier)
-                                  .addExerciseToWorkout(
-                                    widget.workoutId!,
-                                    ex.code,
-                                    ex.name,
-                                  );
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('${ex.name} added'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
                             }
                           }
-                        },
-                      );
-                    }).toList(),
-                  );
-                }
+                        }
+                      },
+                    );
+                  }).toList(),
+                );
               },
               loading: () => const SizedBox(
                 height: 200,
@@ -170,31 +144,15 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
-            if (multiSelect)
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  // Упражнения добавятся при создании тренировки
-                },
-                child: Text('Add (${_selectedExerciseCodes.length})'),
-              ),
           ],
         );
       },
     );
   }
 
-  // 🔹 Создание новой тренировки
-  Future<void> _handleCreate() async {
-    if (_selectedExerciseCodes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select at least one exercise'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+  // 🔹 Сохранение тренировки (только для режима создания)
+  Future<void> _handleSave() async {
+    if (!_isCreating) return;
 
     setState(() => _isLoading = true);
 
@@ -202,36 +160,30 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       final userId = ref.read(authRepositoryProvider).currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      // 1. Создаём тренировку
+      // Создаём тренировку с текущей датой и заметками
       final workout = WorkoutModel(
         id: '',
         date: _selectedDate,
         notes: _notesController.text.trim(),
       );
+
       final workoutId = await ref
           .read(workoutsRepositoryProvider)
           .createWorkout(userId, workout);
 
       debugPrint('✅ [WorkoutDetail] Тренировка создана: $workoutId');
 
-      // 2. Добавляем упражнения
-      for (final entry in _selectedExerciseCodes.entries) {
-        await ref
-            .read(workoutsNotifierProvider.notifier)
-            .addExerciseToWorkout(workoutId, entry.key, entry.value);
-      }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Workout created!'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context); // Возврат на список тренировок
+        Navigator.pop(context); // Возврат на список
       }
     } catch (e) {
-      debugPrint('❌ [WorkoutDetail] Ошибка создания: $e');
+      debugPrint('❌ [WorkoutDetail] Ошибка: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
@@ -289,7 +241,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
         .updateExerciseSets(workoutId, workoutExercise.id, updatedSets);
   }
 
-  // 🔹 Добавление нового подхода
+  // 🔹 Добавление подхода
   Future<void> _addNewSet(
     String workoutId,
     WorkoutExercise workoutExercise,
@@ -308,12 +260,11 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       return const Scaffold(body: Center(child: Text('Please login')));
     }
 
-    // ✅ Режим создания
+    // ✅ ВСЕГДА показываем UI workout_detail_screen!
     if (_isCreating) {
-      return _buildCreateMode();
+      return _buildEmptyWorkoutUI();
     }
 
-    // ✅ Режим просмотра/редактирования
     if (widget.workoutId == null) {
       return const Scaffold(body: Center(child: Text('Invalid workout ID')));
     }
@@ -335,8 +286,10 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       body: workoutAsync.when(
         data: (workout) {
           if (workout == null) return _buildNotFound();
-          _loadExistingWorkout(workout); // Загружаем данные в контроллеры
-          return _buildViewMode(
+          // Обновляем контроллеры
+          _selectedDate = workout.date;
+          _notesController.text = workout.notes ?? '';
+          return _buildWorkoutUI(
             workout,
             exercisesAsync,
             userId,
@@ -349,142 +302,119 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     );
   }
 
-  // 🔹 Режим создания новой тренировки
-  Widget _buildCreateMode() {
+  // 🔹 UI для НОВОЙ тренировки (пустой, без упражнений)
+  Widget _buildEmptyWorkoutUI() {
     return Scaffold(
-      appBar: AppBar(title: const Text('New Workout')),
-      body: Stack(
+      appBar: AppBar(
+        title: const Text('New Workout'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save, color: Colors.green),
+            onPressed: _isLoading ? null : _handleSave,
+            tooltip: 'Save Workout',
+          ),
+        ],
+      ),
+      body: Column(
         children: [
-          Form(
+          // Карточка с датой и заметками
+          Card(
+            margin: const EdgeInsets.all(16),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Дата
-                  InkWell(
-                    onTap: () => _selectDate(context),
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Date *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(
-                        '${_selectedDate.day}.${_selectedDate.month}.${_selectedDate.year}',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Заметки
-                  TextFormField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes',
-                      hintText: 'Optional notes...',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 24),
-                  // Выбор упражнений
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Exercises:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: Colors.grey,
                       ),
-                      TextButton.icon(
-                        onPressed: _isLoading
-                            ? null
-                            : () => _showExerciseSelectionDialog(
-                                multiSelect: true,
-                              ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add'),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => _selectDate(context),
+                        child: Text(
+                          _formatDate(_selectedDate),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  if (_selectedExerciseCodes.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        'No exercises selected',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  Expanded(
-                    child: ListView(
-                      children: _selectedExerciseCodes.entries.map((entry) {
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text(entry.value),
-                            subtitle: Text('Code: ${entry.key}'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: _isLoading
-                                  ? null
-                                  : () => setState(
-                                      () => _selectedExerciseCodes.remove(
-                                        entry.key,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
                   const SizedBox(height: 16),
-                  // Кнопка создания
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _handleCreate,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                  const Text(
+                    'Notes:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(
+                      hintText: 'Optional notes...',
+                      border: InputBorder.none,
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Create Workout',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    maxLines: 2,
                   ),
                 ],
               ),
             ),
           ),
-          if (_isLoading)
-            Container(
-              color: Colors.black26,
-              child: const Center(child: CircularProgressIndicator()),
+          const Divider(height: 1),
+          // Заголовок упражнений + кнопка добавления
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Exercises',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle, color: Colors.blue),
+                  onPressed: _isLoading ? null : _showAddExerciseDialog,
+                  tooltip: 'Add Exercise',
+                ),
+              ],
             ),
+          ),
+          // Пустой список (упражнений ещё нет)
+          const Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.fitness_center, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No exercises yet',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Tap + to add exercises',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Then tap ✓ to save workout',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // 🔹 Режим просмотра/редактирования
-  Widget _buildViewMode(
+  // 🔹 UI для СУЩЕСТВУЮЩЕЙ тренировки (с упражнениями)
+  Widget _buildWorkoutUI(
     WorkoutModel workout,
     AsyncValue<List<WorkoutExercise>> exercisesAsync,
     String userId,
@@ -492,7 +422,6 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
   ) {
     return Column(
       children: [
-        // Карточка тренировки
         Card(
           margin: const EdgeInsets.all(16),
           child: Padding(
@@ -529,7 +458,6 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           ),
         ),
         const Divider(height: 1),
-        // Заголовок упражнений + кнопка добавления
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
@@ -541,14 +469,12 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.add_circle, color: Colors.blue),
-                onPressed: () =>
-                    _showExerciseSelectionDialog(multiSelect: false),
+                onPressed: () => _showAddExerciseDialog(),
                 tooltip: 'Add Exercise',
               ),
             ],
           ),
         ),
-        // Список упражнений
         Expanded(
           child: exercisesAsync.when(
             data: (exercises) {
@@ -572,7 +498,6 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     );
   }
 
-  // 🔹 Карточка упражнения с подходами
   Widget _buildExerciseTile(String workoutId, WorkoutExercise workoutExercise) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
