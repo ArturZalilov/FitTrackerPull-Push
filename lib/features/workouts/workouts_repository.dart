@@ -1,4 +1,7 @@
+// 📁 lib/features/workouts/workouts_repository.dart
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'workouts_model.dart';
 
@@ -14,22 +17,57 @@ class WorkoutsRepository {
     return doc.id;
   }
 
+  // ✅ ИСПРАВЛЕНО: добавлен таймаут и правильный возврат ошибки
   Future<WorkoutModel?> getWorkout(String userId, String workoutId) async {
+    debugPrint(
+      '🔌 [WorkoutsRepository] Запрос: users/$userId/workouts/$workoutId',
+    );
+
     try {
       final doc = await _firestore
           .collection('users')
           .doc(userId)
           .collection('workouts')
           .doc(workoutId)
-          .get();
+          .get()
+          .timeout(
+            const Duration(seconds: 10), // ⏱️ Если дольше 10 сек — таймаут
+            onTimeout: () {
+              debugPrint(
+                '❌ [WorkoutsRepository] ТАЙМАУТ: Firestore не ответил',
+              );
+              throw Exception('Firestore timeout: no response in 10 seconds');
+            },
+          );
 
-      if (doc.exists) {
-        return WorkoutModel.fromMap(doc.data()!, doc.id);
+      debugPrint('📡 [WorkoutsRepository] exists: ${doc.exists}');
+
+      if (!doc.exists) {
+        debugPrint('⚠️ [WorkoutsRepository] Документ не найден');
+        return null;
       }
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error fetching workout: $e');
-      return null;
+
+      final data = doc.data();
+      if (data == null) {
+        debugPrint('⚠️ [WorkoutsRepository] data is null');
+        return null;
+      }
+
+      final workout = WorkoutModel.fromMap(data, doc.id);
+      debugPrint('✅ [WorkoutsRepository] Возвращаю: ${workout.date}');
+      return workout;
+    } on FirebaseAuthException catch (e) {
+      debugPrint(
+        '❌ [WorkoutsRepository] FirebaseAuthException: ${e.code} - ${e.message}',
+      );
+      rethrow; // ← Пробрасываем, чтобы экран увидел ошибку
+    } on TimeoutException catch (e) {
+      debugPrint('❌ [WorkoutsRepository] Timeout: $e');
+      rethrow;
+    } catch (e, stack) {
+      debugPrint('❌ [WorkoutsRepository] Unknown error: $e');
+      debugPrint('📋 Stack: $stack');
+      rethrow; // ← Обязательно!
     }
   }
 

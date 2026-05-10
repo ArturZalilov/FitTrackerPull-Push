@@ -1,19 +1,17 @@
 // 📁 lib/features/auth/ui/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Добавили
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ ДОБАВЛЕНО: для FirebaseAuthException
 import '../auth_notifier.dart';
 
 class LoginScreen extends ConsumerWidget {
-  // ✅ ConsumerWidget
   const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ✅ Добавили ref
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
 
-    // ✅ Показ ошибки
     void showError(String message) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -22,7 +20,6 @@ class LoginScreen extends ConsumerWidget {
       }
     }
 
-    // ✅ Валидация полей
     bool validateLogin() {
       if (emailController.text.trim().isEmpty) {
         showError('Please enter your email');
@@ -37,8 +34,8 @@ class LoginScreen extends ConsumerWidget {
 
     void handleLogin() async {
       if (!validateLogin()) return;
+
       try {
-        // ✅ Правильный вызов через Riverpod
         await ref
             .read(authNotifierProvider.notifier)
             .signIn(
@@ -46,19 +43,47 @@ class LoginScreen extends ConsumerWidget {
               passwordController.text.trim(),
             );
 
-        // ✅ Переход только если виджет ещё в дереве
         if (context.mounted) {
           Navigator.pushReplacementNamed(context, '/app');
         }
-      } catch (e) {
-        // ✅ Показываем ошибку
+      }
+      // ✅ ДОБАВЛЕНО: обработка конкретных ошибок Firebase
+      on FirebaseAuthException catch (e) {
+        String message = 'Ошибка входа';
+
+        switch (e.code) {
+          case 'user-not-found':
+            message = 'Пользователь с таким email не найден';
+            break;
+          case 'wrong-password':
+            message = 'Неверный пароль';
+            break;
+          case 'invalid-email':
+            message = 'Некорректный формат email';
+            break;
+          case 'user-disabled':
+            message = 'Аккаунт заблокирован';
+            break;
+          case 'too-many-requests':
+            message = 'Слишком много попыток. Попробуйте позже';
+            break;
+          case 'network-request-failed':
+            message = 'Нет соединения с интернетом';
+            break;
+          case 'invalid-credential':
+            message = 'Неверный email или пароль';
+            break;
+          default:
+            message = 'Ошибка: ${e.message}';
+        }
+
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ошибка входа: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showError(message);
+        }
+      } catch (e) {
+        // ✅ Обработка остальных ошибок
+        if (context.mounted) {
+          showError('Ошибка входа: ${e.toString()}');
         }
       }
     }

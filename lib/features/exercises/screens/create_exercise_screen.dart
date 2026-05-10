@@ -36,7 +36,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen> {
             _codeController.text.trim().toLowerCase().replaceAll(' ', '_'),
             _nameController.text.trim(),
             _descriptionController.text.trim(),
-            num.tryParse(_recordController.text) ?? 0,
+            0,
           );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -88,16 +88,6 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen> {
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _recordController,
-                decoration: const InputDecoration(
-                  labelText: 'Personal Record',
-                  hintText: 'e.g., 100',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
