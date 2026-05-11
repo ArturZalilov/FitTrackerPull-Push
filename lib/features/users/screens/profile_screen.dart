@@ -23,21 +23,32 @@ class ProfileScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black87,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              // TODO: Настройки
+            },
+          ),
+        ],
       ),
       body: userData.when(
         data: (userProfile) {
-          if (userProfile == null) {
-            return _buildEmptyProfile();
-          }
-          return _buildProfileContent(context, ref, userProfile, workoutsAsync);
+          if (userProfile == null) return _buildEmptyProfile();
+          return _buildProfileContent(
+            context,
+            ref,
+            userProfile,
+            workoutsAsync,
+            userId!,
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => _buildErrorState(ref, err),
+        error: (err, _) => _buildErrorState(ref, err),
       ),
     );
   }
 
-  // 🔹 Пустой профиль
   Widget _buildEmptyProfile() {
     return Center(
       child: Column(
@@ -62,35 +73,61 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // 🔹 Основной контент профиля
   Widget _buildProfileContent(
     BuildContext context,
     WidgetRef ref,
     dynamic userProfile,
     AsyncValue<List<dynamic>> workoutsAsync,
+    String userId,
   ) {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        // 👤 Аватар и имя
+        // 👤 Аватар + имя + почта
         Center(
           child: Column(
             children: [
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
+              Stack(
+                children: [
+                  Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade400, Colors.blue.shade600],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: const Icon(Icons.person, size: 55, color: Colors.blue),
+                    child: const Icon(
+                      Icons.person,
+                      size: 55,
+                      color: Colors.white,
+                    ),
+                  ),
+                  // ✅ Бейдж "онлайн" (декоративный)
+                  Positioned(
+                    right: 4,
+                    bottom: 4,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               Text(
@@ -111,8 +148,44 @@ class ProfileScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 32),
 
-        // 📊 Статистика
-        _buildSectionTitle('Статистика'),
+        // 📊 Быстрая статистика (горизонтальные карточки)
+        _buildSectionTitle('Активность'),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildQuickStatCard(
+                icon: Icons.fitness_center,
+                label: 'Тренировок',
+                value: workoutsAsync.when(
+                  data: (w) => '${w.length}',
+                  loading: () => '...',
+                  error: (_, __) => '0',
+                ),
+                color: Colors.blue,
+              ),
+              const SizedBox(width: 12),
+              _buildQuickStatCard(
+                icon: Icons.local_fire_department,
+                label: 'Серия',
+                value: _calculateStreak(workoutsAsync),
+                color: Colors.orange,
+              ),
+              const SizedBox(width: 12),
+              _buildQuickStatCard(
+                icon: Icons.upgrade,
+                label: 'Личный рекорд',
+                value: _getPersonalBest(workoutsAsync),
+                color: Colors.purple,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // 📈 Детальная статистика
+        _buildSectionTitle('Параметры'),
         const SizedBox(height: 12),
         Card(
           elevation: 2,
@@ -124,23 +197,12 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               children: [
                 _buildStatItem(
-                  icon: Icons.fitness_center,
-                  iconColor: Colors.blue,
-                  label: 'Тренировок',
-                  value: workoutsAsync.when(
-                    data: (workouts) => '${workouts.length}',
-                    loading: () => '...',
-                    error: (_, __) => '0',
-                  ),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _buildStatItem(
                   icon: Icons.monitor_weight,
                   iconColor: Colors.green,
                   label: 'Вес',
                   value: userProfile.weight.isNotEmpty
                       ? '${userProfile.weight} кг'
-                      : '—',
+                      : 'Не указан',
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 _buildStatItem(
@@ -149,7 +211,14 @@ class ProfileScreen extends ConsumerWidget {
                   label: 'Рост',
                   value: userProfile.height.isNotEmpty
                       ? '${userProfile.height} см'
-                      : '—',
+                      : 'Не указан',
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                _buildStatItem(
+                  icon: Icons.bolt,
+                  iconColor: Colors.blue,
+                  label: 'Всего поднято',
+                  value: _calculateTotalWeight(workoutsAsync),
                 ),
               ],
             ),
@@ -157,8 +226,8 @@ class ProfileScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
-        // 🔧 Настройки
-        _buildSectionTitle('Настройки'),
+        // 🔧 Меню
+        _buildSectionTitle('Меню'),
         const SizedBox(height: 12),
         Card(
           elevation: 2,
@@ -167,28 +236,25 @@ class ProfileScreen extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              _buildSettingsItem(
+              _buildMenuItem(
                 icon: Icons.person_outline,
                 iconColor: Colors.blue,
                 label: 'Редактировать профиль',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Функция в разработке'),
-                      backgroundColor: Colors.grey,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                onTap: () => _showComingSoon(context),
               ),
               const Divider(height: 1, indent: 16, endIndent: 16),
-              _buildSettingsItem(
+              _buildMenuItem(
                 icon: Icons.notifications_outlined,
                 iconColor: Colors.orange,
                 label: 'Уведомления',
-                onTap: () {
-                  // TODO: Настройки уведомлений
-                },
+                onTap: () => _showComingSoon(context),
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              _buildMenuItem(
+                icon: Icons.help_outline,
+                iconColor: Colors.grey,
+                label: 'Помощь и поддержка',
+                onTap: () => _showComingSoon(context),
               ),
             ],
           ),
@@ -255,6 +321,56 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  // 🔹 Быстрая статистика (горизонтальная карточка)
+  Widget _buildQuickStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🔹 Строка статистики
   Widget _buildStatItem({
     required IconData icon,
@@ -289,8 +405,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // 🔹 Элемент настроек
-  Widget _buildSettingsItem({
+  // 🔹 Пункт меню
+  Widget _buildMenuItem({
     required IconData icon,
     required Color iconColor,
     required String label,
@@ -332,27 +448,32 @@ class ProfileScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade700,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
             child: const Text('Выйти'),
           ),
         ],
       ),
     );
-
     if (confirm == true && context.mounted) {
       await ref.read(authNotifierProvider.notifier).signOut();
-      if (context.mounted) {
+      if (context.mounted)
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
     }
+  }
+
+  // 🔹 Заглушка "Скоро"
+  void _showComingSoon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Функция в разработке 🚧'),
+        backgroundColor: Colors.grey,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // 🔹 Состояние ошибки
   Widget _buildErrorState(WidgetRef ref, Object error) {
-    debugPrint('❌ [Profile] Ошибка: $error');
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -390,14 +511,42 @@ class ProfileScreen extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // 🔹 Расчёт серии (упрощённо)
+  String _calculateStreak(AsyncValue<List<dynamic>> workoutsAsync) {
+    // ✅ Проверяем на AsyncData
+    if (workoutsAsync is! AsyncData) return '0';
+
+    // ✅ Проверяем на null
+    final workouts = workoutsAsync.value;
+    if (workouts == null || workouts.isEmpty) return '0';
+
+    // ✅ Простая логика: считаем тренировки за последние 7 дней
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final recent = workouts.where((w) => w.date.isAfter(weekAgo)).length;
+
+    return recent > 0 ? '$recent🔥' : '0';
+  }
+
+  // 🔹 Личный рекорд (упрощённо)
+  String _getPersonalBest(AsyncValue<List<dynamic>> workoutsAsync) {
+    if (workoutsAsync is! AsyncData) return '—';
+    // Заглушка: в реальном приложении нужно агрегировать данные
+    return '—';
+  }
+
+  // 🔹 Общий поднятый вес (упрощённо)
+  String _calculateTotalWeight(AsyncValue<List<dynamic>> workoutsAsync) {
+    if (workoutsAsync is! AsyncData) return '—';
+    // Заглушка: нужен доступ к подходам
+    return '—';
   }
 }

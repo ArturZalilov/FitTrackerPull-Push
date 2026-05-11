@@ -25,7 +25,29 @@ class WorkoutsScreen extends ConsumerWidget {
     }
 
     final workoutsAsync = ref.watch(userWorkoutsProvider(userId));
+    // ✅ ПРЕФЕТЧИНГ: загружаем упражнения для последних 10 тренировок
+    workoutsAsync.whenData((workouts) {
+      if (workouts.isEmpty) return;
 
+      final recent = workouts.take(10).toList();
+      debugPrint(
+        '📦 [Pre-fetch] Caching exercises for ${recent.length} workouts',
+      );
+
+      for (final workout in recent) {
+        // Загружаем и кэшируем
+        ref
+            .read(workoutExercisesProvider('$userId|${workout.id}').future)
+            .then((exercises) {
+              debugPrint(
+                '  ✅ Cached ${exercises.length} exercises for ${workout.id}',
+              );
+            })
+            .catchError((e) {
+              debugPrint('  ❌ Failed to cache ${workout.id}: $e');
+            });
+      }
+    });
     return Scaffold(
       appBar: AppBar(title: const Text('My Workouts')),
       body: workoutsAsync.when(
