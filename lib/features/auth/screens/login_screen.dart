@@ -1,7 +1,6 @@
-// 📁 lib/features/auth/ui/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ ДОБАВЛЕНО: для FirebaseAuthException
+import 'package:firebase_auth/firebase_auth.dart';
 import '../auth_notifier.dart';
 
 class LoginScreen extends ConsumerWidget {
@@ -11,7 +10,6 @@ class LoginScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
-
     void showError(String message) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -20,6 +18,7 @@ class LoginScreen extends ConsumerWidget {
       }
     }
 
+    // Валидация полей перед попыткой входа
     bool validateLogin() {
       if (emailController.text.trim().isEmpty) {
         showError('Please enter your email');
@@ -34,7 +33,6 @@ class LoginScreen extends ConsumerWidget {
 
     void handleLogin() async {
       if (!validateLogin()) return;
-
       try {
         await ref
             .read(authNotifierProvider.notifier)
@@ -42,12 +40,11 @@ class LoginScreen extends ConsumerWidget {
               emailController.text.trim(),
               passwordController.text.trim(),
             );
-
         if (context.mounted) {
           Navigator.pushReplacementNamed(context, '/app');
         }
       }
-      // ✅ ДОБАВЛЕНО: обработка конкретных ошибок Firebase
+      // Обработка ошибок FirebaseAuthException с пользовательскими сообщениями
       on FirebaseAuthException catch (e) {
         String message = 'Ошибка входа';
 
@@ -81,7 +78,6 @@ class LoginScreen extends ConsumerWidget {
           showError(message);
         }
       } catch (e) {
-        // ✅ Обработка остальных ошибок
         if (context.mounted) {
           showError('Ошибка входа: ${e.toString()}');
         }

@@ -29,9 +29,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   void _tryNavigate() {
     if (!_canNavigate || !mounted) return;
-
     final authState = ref.read(authStateProvider);
-
     authState.when(
       data: (user) {
         if (mounted) {
@@ -56,15 +54,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Только BuildContext, без ref!
-    // 🔥 Слушаем authState
     ref.listen(authStateProvider, (previous, next) {
       if (_canNavigate) {
         _tryNavigate();
       }
     });
-
-    // 🎨 Твой красивый UI
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

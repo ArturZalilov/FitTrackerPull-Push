@@ -1,10 +1,8 @@
-// 📁 lib/features/auth/ui/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth_notifier.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  // ✅ Stateful вместо Widget
   const RegisterScreen({super.key});
 
   @override
@@ -12,7 +10,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  // ✅ Контроллеры создаём один раз при инициализации
+  // Контроллеры
   late final TextEditingController _nameController;
   late final TextEditingController _lastNameController;
   late final TextEditingController _weightController;
@@ -23,7 +21,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ Инициализация контроллеров
+    // Инициализация контроллеров
     _nameController = TextEditingController();
     _lastNameController = TextEditingController();
     _weightController = TextEditingController();
@@ -34,7 +32,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   void dispose() {
-    // ✅ Очищаем контроллеры
+    // Очищаем контроллеры
     _nameController.dispose();
     _lastNameController.dispose();
     _weightController.dispose();
@@ -44,7 +42,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  // ✅ Валидация полей
+  // Валидация полей
   bool validateRegistration() {
     if (_nameController.text.trim().isEmpty) {
       _showError('Please enter your name');
@@ -73,7 +71,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return true;
   }
 
-  // ✅ Показ ошибки
+  // Показ ошибки при валидации
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,7 +81,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void handleRegister() async {
-    // ✅ Проверка валидации
+    // Проверка валидации
     if (!validateRegistration()) return;
     try {
       await ref
@@ -96,13 +94,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _weightController.text.trim(),
             _heightController.text.trim(),
           );
-
-      // ✅ Правильно: используем mounted (без context.)
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/app');
       }
     } catch (e) {
-      // ✅ Тоже используем mounted
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -116,9 +111,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  // Метод для получения пользовательского сообщения об ошибке на основе кода ошибки Firebase
   String _getAuthErrorMessage(dynamic error) {
     String code = error?.code?.toString() ?? '';
-
     switch (code) {
       case 'email-already-in-use':
         return '📧 Этот email уже зарегистрирован. Попробуйте войти.';
@@ -164,7 +159,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // ✅ Имя
+                // Имя
                 TextField(
                   controller: _nameController,
                   enableSuggestions: false,
@@ -177,7 +172,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ Фамилия
+                // Фамилия
                 TextField(
                   controller: _lastNameController,
                   keyboardType: TextInputType.text, // ✅ Явно разрешаем буквы
@@ -189,7 +184,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ Вес (только цифры)
+                // Вес
                 TextField(
                   controller: _weightController,
                   keyboardType: TextInputType.number,
@@ -201,7 +196,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ Рост (только цифры)
+                // Рост
                 TextField(
                   controller: _heightController,
                   keyboardType: TextInputType.number,
@@ -213,7 +208,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ Email
+                // Email
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -226,7 +221,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ Пароль
+                // Пароль
                 TextField(
                   controller: _passwordController,
                   obscureText: true,

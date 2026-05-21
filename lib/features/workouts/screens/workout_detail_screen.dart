@@ -38,6 +38,28 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: Colors.blue,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: Colors.black87,
+          ),
+          dialogBackgroundColor: Colors.white,
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
   Future<void> _handleCreate() async {
     setState(() => _isLoading = true);
     try {
@@ -49,7 +71,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
         date: _selectedDate,
         notes: _notesController.text.trim(),
       );
-      final newWorkoutId = await ref
+      final newId = await ref
           .read(workoutsRepositoryProvider)
           .createWorkout(userId, workout);
 
@@ -57,7 +79,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => WorkoutDetailScreen(workoutId: newWorkoutId),
+            builder: (_) => WorkoutDetailScreen(workoutId: newId),
           ),
         );
       }
@@ -67,6 +89,10 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           SnackBar(
             content: Text('Ошибка: $e'),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -80,7 +106,10 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Удалить тренировку?'),
+        title: const Text(
+          'Удалить тренировку?',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         content: const Text('Это действие нельзя отменить.'),
         actions: [
           TextButton(
@@ -91,6 +120,9 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade700,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Удалить'),
           ),
@@ -115,92 +147,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
 
     // ✅ РЕЖИМ СОЗДАНИЯ
     if (_isCreating) {
-      return Scaffold(
-        backgroundColor: Colors.grey.shade50,
-        appBar: AppBar(
-          title: const Text('Новая тренировка'),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          foregroundColor: Colors.black87,
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    child: const Icon(Icons.calendar_today, color: Colors.blue),
-                  ),
-                  title: const Text('Дата тренировки'),
-                  subtitle: Text(_formatDate(_selectedDate)),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) setState(() => _selectedDate = picked);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _notesController,
-                    decoration: InputDecoration(
-                      labelText: 'Заметки (необязательно)',
-                      hintText: 'Что планируем делать сегодня?',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                    ),
-                    maxLines: 3,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _handleCreate,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.blue,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 4,
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Создать тренировку',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      );
+      return _buildCreateMode();
     }
 
     // ✅ РЕЖИМ ПРОСМОТРА / РЕДАКТИРОВАНИЯ
@@ -211,7 +158,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Детали тренировки'),
+        title: const Text('Тренировка'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black87,
@@ -219,239 +166,473 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             onPressed: () => _handleDelete(widget.workoutId!),
+            tooltip: 'Удалить тренировку',
           ),
         ],
       ),
       body: workoutAsync.when(
         data: (workout) {
-          if (workout == null)
-            return const Center(child: Text('Тренировка не найдена'));
+          if (workout == null) return _buildNotFound();
 
           return Column(
             children: [
-              Card(
-                margin: const EdgeInsets.all(16),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 20,
-                            color: Colors.blue,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            _formatDate(workout.date),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (workout.notes?.isNotEmpty ?? false) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '📝 ${workout.notes}',
-                            style: TextStyle(color: Colors.blue.shade900),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
+              // 📅 Карточка информации
+              _buildInfoCard(workout),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text(
-                      'Упражнения',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // 🏋️ Заголовок упражнений
+              _buildExercisesHeader(),
 
+              // 📋 Список упражнений
               Expanded(
                 child: exercisesAsync.when(
-                  data: (exercises) {
-                    if (exercises.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.fitness_center,
-                              size: 64,
-                              color: Colors.blueGrey.shade200,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Пока нет упражнений',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Нажмите + чтобы добавить',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      itemCount: exercises.length,
-                      itemBuilder: (context, index) {
-                        return _buildExerciseCard(
-                          widget.workoutId!,
-                          exercises[index],
-                        );
-                      },
-                    );
-                  },
+                  data: (exercises) =>
+                      _buildExercisesList(widget.workoutId!, exercises),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(child: Text('Ошибка: $err')),
+                  error: (err, _) =>
+                      _buildError('Ошибка загрузки упражнений', err.toString()),
                 ),
               ),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Ошибка загрузки: $err')),
+        error: (err, _) =>
+            _buildError('Ошибка загрузки тренировки', err.toString()),
       ),
       floatingActionButton: workoutAsync.when(
-        data: (workout) => FloatingActionButton.extended(
-          onPressed: () {
-            Navigator.pushNamed(
-              context,
-              '/select-exercise',
-              arguments: {'workoutId': widget.workoutId!, 'existingCodes': []},
-            );
-          },
-          backgroundColor: Colors.blue,
-          icon: const Icon(Icons.add),
-          label: const Text('Добавить'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 4,
-        ),
+        data: (workout) => _buildFloatingActionButton(),
         loading: () => null,
         error: (err, _) => null,
       ),
     );
   }
 
-  Widget _buildExerciseCard(String workoutId, WorkoutExercise exercise) {
+  // 🔹 Режим создания тренировки
+  Widget _buildCreateMode() {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: const Text('Новая тренировка'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black87,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 🎯 Иконка-заголовок
+            Center(
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade400, Colors.blue.shade600],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.fitness_center,
+                  size: 45,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // 📅 Карточка даты
+            _buildInfoTile(
+              icon: Icons.calendar_today,
+              iconColor: Colors.blue,
+              title: 'Дата тренировки',
+              subtitle: _formatDate(_selectedDate),
+              onTap: () => _selectDate(context),
+              isInteractive: true,
+            ),
+            const SizedBox(height: 16),
+
+            // 📝 Карточка заметок
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.notes,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Заметки',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _notesController,
+                      decoration: InputDecoration(
+                        hintText: 'Что планируем сделать сегодня?',
+                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.blue,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                      maxLines: 4,
+                      style: const TextStyle(fontSize: 15),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // ✅ Кнопка создания
+            SizedBox(
+              height: 54,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleCreate,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shadowColor: Colors.blue.withOpacity(0.4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle_outline, size: 22),
+                          SizedBox(width: 10),
+                          Text(
+                            'Создать тренировку',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🔹 Карточка информации о тренировке
+  Widget _buildInfoCard(WorkoutModel workout) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.all(16),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        title: Text(
-          exercise.exerciseName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today,
+                    color: Colors.blue,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Дата проведения',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDate(workout.date),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (workout.notes?.isNotEmpty ?? false) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200, width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.notes, size: 18, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Заметки',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      workout.notes!,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.blue.shade900,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
-        subtitle: Text(
-          'ID: ${exercise.exerciseCode}',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-        ),
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue.shade50,
-          child: const Icon(Icons.fitness_center, color: Colors.blue),
-        ),
-        childrenPadding: const EdgeInsets.only(bottom: 12),
+      ),
+    );
+  }
+
+  // 🔹 Заголовок раздела упражнений
+  Widget _buildExercisesHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          const Text(
+            'Упражнения',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Row(
-              children: const [
-                SizedBox(
-                  width: 30,
-                  child: Center(
-                    child: Text(
-                      '#',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: Text(
-                      'Вес (кг)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: Text(
-                      'Повторы',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 40,
-                  child: Center(
-                    child: Text(
-                      '✓',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.fitness_center, size: 16, color: Colors.blue),
+                const SizedBox(width: 4),
+                Text(
+                  'Добавить',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade700,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 Список упражнений
+  Widget _buildExercisesList(
+    String workoutId,
+    List<WorkoutExercise> exercises,
+  ) {
+    if (exercises.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.fitness_center,
+                size: 48,
+                color: Colors.blue,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Пока нет упражнений',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Нажмите + чтобы добавить первое',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: exercises.length,
+      itemBuilder: (context, index) {
+        return _buildExerciseCard(workoutId, exercises[index]);
+      },
+    );
+  }
+
+  // 🔹 Карточка упражнения
+  Widget _buildExerciseCard(String workoutId, WorkoutExercise exercise) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        title: Text(
+          exercise.exerciseName,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+        ),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade400, Colors.blue.shade600],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.fitness_center,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        children: [
+          // Заголовки колонок
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Center(child: Text('#', style: _headerStyle())),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Вес', style: _headerStyle())),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Повт.', style: _headerStyle())),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Center(child: Text('✓', style: _headerStyle())),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+
+          // Подходы
           ...exercise.sets.asMap().entries.map((entry) {
             return _SetRowWidget(
               workoutId: workoutId,
@@ -460,8 +641,10 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
               set: entry.value,
             );
           }).toList(),
+
+          // Кнопка добавления подхода
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: TextButton.icon(
               onPressed: () async {
                 final updatedSets = List<WorkoutSet>.from(exercise.sets)
@@ -477,7 +660,19 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
               ),
               label: const Text(
                 'Добавить подход',
-                style: TextStyle(color: Colors.blue),
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
@@ -485,9 +680,189 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       ),
     );
   }
+
+  // 🔹 Стиль заголовков колонок
+  TextStyle _headerStyle() => TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: Colors.grey.shade600,
+  );
+
+  // 🔹 Карточка-кнопка для интерактивных элементов
+  Widget _buildInfoTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isInteractive,
+  }) {
+    return InkWell(
+      onTap: isInteractive ? onTap : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: isInteractive ? 2 : 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: isInteractive ? Colors.white : Colors.grey.shade100,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isInteractive)
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔹 Плавающая кнопка добавления упражнений
+  Widget _buildFloatingActionButton() {
+    return FloatingActionButton.extended(
+      onPressed: () {
+        Navigator.pushNamed(
+          context,
+          '/select-exercise',
+          arguments: {'workoutId': widget.workoutId!, 'existingCodes': []},
+        );
+      },
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      icon: const Icon(Icons.add),
+      label: const Text('Упражнение'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      hoverElevation: 6,
+      tooltip: 'Добавить упражнение',
+    );
+  }
+
+  // 🔹 Состояние "не найдено"
+  Widget _buildNotFound() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.red.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Тренировка не найдена',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Назад'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 Состояние ошибки
+  Widget _buildError(String title, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Повторить'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-// ✅ ОТДЕЛЬНЫЙ ВИДЖЕТ ДЛЯ СТРОКИ ПОДХОДА (ConsumerStatefulWidget)
+// ✅ ОТДЕЛЬНЫЙ ВИДЖЕТ ДЛЯ СТРОКИ ПОДХОДА (без изменений логики)
+// Только визуальные улучшения
 class _SetRowWidget extends ConsumerStatefulWidget {
   final String workoutId;
   final String exerciseId;
@@ -617,91 +992,125 @@ class _SetRowWidgetState extends ConsumerState<_SetRowWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
+          // Номер подхода
           SizedBox(
-            width: 30,
+            width: 32,
             child: Center(
-              child: Text(
-                '#${widget.setIndex + 1}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    '#${widget.setIndex + 1}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
+
+          // Поле Веса
           Expanded(
             flex: 2,
-            child: TextField(
+            child: _buildInputField(
               controller: _weightCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.blue, width: 2),
-                ),
-              ),
-              onSubmitted: (_) => _saveChanges(),
+              hint: '0',
+              suffix: 'кг',
+              onSave: (_) => _saveChanges(),
             ),
           ),
           const SizedBox(width: 8),
+
+          // Поле Повторов
           Expanded(
             flex: 2,
-            child: TextField(
+            child: _buildInputField(
               controller: _repsCtrl,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.blue, width: 2),
-                ),
-              ),
-              onSubmitted: (_) => _saveChanges(),
+              hint: '0',
+              suffix: 'раз',
+              onSave: (_) => _saveChanges(),
             ),
           ),
           const SizedBox(width: 8),
+
+          // Галочка (Чекбокс)
           SizedBox(
-            width: 40,
-            child: Checkbox(
-              value: widget.set.completed,
-              activeColor: Colors.green,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+            width: 44,
+            child: Container(
+              decoration: BoxDecoration(
+                color: widget.set.completed
+                    ? Colors.green.shade100
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
               ),
-              onChanged: (value) {
-                if (value != null) {
-                  final currentWeight =
-                      num.tryParse(_weightCtrl.text) ?? widget.set.weight;
-                  final currentReps =
-                      int.tryParse(_repsCtrl.text) ?? widget.set.reps;
-                  _saveChangesWithOverride(
-                    completed: value,
-                    weight: currentWeight,
-                    reps: currentReps,
-                  );
-                }
-              },
+              child: Checkbox(
+                value: widget.set.completed,
+                activeColor: Colors.green,
+                checkColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                onChanged: (value) {
+                  if (value != null) {
+                    final currentWeight =
+                        num.tryParse(_weightCtrl.text) ?? widget.set.weight;
+                    final currentReps =
+                        int.tryParse(_repsCtrl.text) ?? widget.set.reps;
+                    _saveChangesWithOverride(
+                      completed: value,
+                      weight: currentWeight,
+                      reps: currentReps,
+                    );
+                  }
+                },
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // 🔹 Вспомогательный виджет для полей ввода
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    required String suffix,
+    required Function(String) onSave,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.numberWithOptions(decimal: suffix == 'кг'),
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.shade400),
+          suffixText: suffix,
+          suffixStyle: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 10,
+            horizontal: 8,
+          ),
+        ),
+        onSubmitted: onSave,
       ),
     );
   }
